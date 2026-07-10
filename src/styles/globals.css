@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F7F8FA;
+  --bg-elevated: #FFFFFF;
+  --text-primary: #0B1220;
+  --text-secondary: #64748B;
+  --border: #E2E5EA;
+  --signal: #17B890;
+  --amber: #F5A623;
+}
+
+.dark {
+  --bg: #0B1220;
+  --bg-elevated: #111A2C;
+  --text-primary: #F7F8FA;
+  --text-secondary: #94A3B8;
+  --border: #22304A;
+  --signal: #34D3A6;
+  --amber: #F7B84B;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply font-body antialiased;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3, h4 {
+  @apply font-display;
+  letter-spacing: -0.01em;
+}
+
+/* Numeric / score displays use the mono utility face throughout the app
+   — this is deliberate: it gives every score, percentage, and metric a
+   consistent "instrument reading" feel that ties back to the product's
+   navigation metaphor. */
+.data-figure {
+  @apply font-mono tabular-nums;
+}
+
+::selection {
+  background-color: var(--signal);
+  color: white;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
