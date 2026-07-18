@@ -27,7 +27,7 @@ function cors(body: unknown, status = 200) {
     headers: {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, content-type",
+      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
     },
   });
 }

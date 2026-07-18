@@ -8,6 +8,7 @@ import { DashboardHome } from "@/features/dashboard/DashboardHome";
 import { ModulePlaceholder } from "@/shared/components/ModulePlaceholder";
 import { ResumeAnalyzerPage } from "@/features/resume-analyzer/ResumeAnalyzerPage";
 import { InterviewCoachPage } from "@/features/interview-coach/InterviewCoachPage";
+import { ResumeBuilderPage } from "@/features/resume-builder/ResumeBuilderPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/dashboard" replace /> },
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
           {
             path: "resume-analyzer",
             element: <ResumeAnalyzerPage />,
+          },
+          {
+            path: "resume-builder",
+            element: <ResumeBuilderPage />,
           },
           {
             path: "jd-analyzer",

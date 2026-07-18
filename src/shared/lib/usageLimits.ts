@@ -13,6 +13,7 @@ export const FREE_TIER_LIMITS: Record<string, number> = {
   jd_analyzer: 2,
   interview_coach: 1,
   career_roadmap: 1,
+  resume_builder_extract: 2,
 };
 
 export type ModuleKey = keyof typeof FREE_TIER_LIMITS;
@@ -22,4 +23,5 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   jd_analyzer: "JD analyses",
   interview_coach: "Interview sessions",
   career_roadmap: "Roadmaps",
+  resume_builder_extract: "Resume auto-fills",
 };

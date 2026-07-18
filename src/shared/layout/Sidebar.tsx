@@ -5,11 +5,13 @@ import {
   FileText,
   ScanSearch,
   MessagesSquare,
+  FileEdit,
 } from "lucide-react";
 
 const nav = [
   { to: "/dashboard", label: "Overview", icon: LayoutGrid, end: true },
   { to: "/dashboard/resume-analyzer", label: "Resume Analyzer", icon: FileText },
+  { to: "/dashboard/resume-builder", label: "Resume Builder", icon: FileEdit },
   { to: "/dashboard/jd-analyzer", label: "JD Analyzer", icon: ScanSearch },
   { to: "/dashboard/interview-coach", label: "Interview Coach", icon: MessagesSquare },
 ];

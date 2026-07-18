@@ -18,10 +18,11 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const FREE_TIER_LIMITS: Record<string, number> = {
-  resume_analyzer: 3,
-  jd_analyzer: 3,
-  interview_coach: 5,
+  resume_analyzer: 2,
+  jd_analyzer: 2,
+  interview_coach: 1,
   career_roadmap: 1,
+  resume_builder_extract: 2,
 };
 
 export async function checkUsageLimit(

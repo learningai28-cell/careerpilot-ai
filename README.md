@@ -89,6 +89,36 @@ supabase functions deploy generate-interview
 supabase functions deploy score-answer
 ```
 
+## Module: Resume Builder (new)
+
+**Two ways to start:** auto-extract structured fields from your existing
+Resume Analyzer upload via AI, or fill in a blank form manually — both feed
+the same editable data, and you choose per-session.
+
+**Cost-aware by design:** only the auto-extract action calls Claude (and is
+usage-capped at `resume_builder_extract`, 2/month free). Manual entry,
+editing, switching templates, and downloading are all free and unlimited —
+there's no AI cost on those paths, so no reason to gate them.
+
+**10 templates**, implemented as configurable variations (layout + accent
+color + font pairing + density) on one shared rendering engine
+(`ResumeTemplateRenderer`) rather than 10 separate components — easier to
+maintain, and adding an 11th template later is just one more config entry,
+not a new component.
+
+**PDF export** uses the browser's native print-to-PDF (via a print-scoped
+CSS rule that hides the rest of the app) rather than a client-side
+rasterizing library. This produces a sharp, real-text PDF — which matters
+here specifically, since ATS parsers read actual text far better than a
+rasterized image of one.
+
+**New migration:** `0005_resume_builder.sql` — `resume_profile_data`
+(one record per user, same single-active-record pattern as `resumes`).
+
+**New Edge Function:** `extract-resume-data` — deploy via the Supabase
+Dashboard using `supabase/functions-dashboard-copy-paste/extract-resume-data.ts`
+(same copy-paste pattern as the other three functions).
+
 ## Setup
 
 1. **Install dependencies**
@@ -104,7 +134,8 @@ supabase functions deploy score-answer
 
 3. **Run the migrations, in order** — in the Supabase SQL editor, run
    `0001_init_profiles.sql`, `0002_usage_plans.sql`,
-   `0003_resume_analyzer.sql`, then `0004_interview_coach.sql`.
+   `0003_resume_analyzer.sql`, `0004_interview_coach.sql`, then
+   `0005_resume_builder.sql`.
 
 4. **Enable Google OAuth (optional)** — Supabase Dashboard → Authentication →
    Providers → Google, add your OAuth client ID/secret.

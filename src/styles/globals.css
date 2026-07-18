@@ -64,3 +64,24 @@ h1, h2, h3, h4 {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Resume Builder: isolates the resume itself when printing/saving as PDF,
+   hiding the rest of the app shell (sidebar, topbar, buttons, etc). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #resume-print-area,
+  #resume-print-area * {
+    visibility: visible;
+  }
+  #resume-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  @page {
+    margin: 0;
+  }
+}

@@ -1,4 +1,4 @@
-import { FileText, ScanSearch, MessagesSquare } from "lucide-react";
+import { FileText, ScanSearch, MessagesSquare, FileEdit } from "lucide-react";
 import { ModuleCard } from "./ModuleCard";
 import { ScoreGauge } from "@/shared/components/ScoreGauge";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
@@ -10,6 +10,12 @@ const modules = [
     title: "Resume Analyzer",
     description: "ATS score, strengths, gaps, and section-by-section rewrites.",
     icon: FileText,
+  },
+  {
+    to: "/dashboard/resume-builder",
+    title: "Resume Builder",
+    description: "Pick a template and generate a polished, downloadable resume.",
+    icon: FileEdit,
   },
   {
     to: "/dashboard/jd-analyzer",
