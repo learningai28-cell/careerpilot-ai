@@ -65,38 +65,26 @@ h1, h2, h3, h4 {
   }
 }
 
-/* Resume Builder: isolates the resume itself when printing/saving as PDF,
-   hiding the rest of the app shell (sidebar, topbar, buttons, etc). */
+/* Resume Builder: the printable resume is rendered into a dedicated
+   portal appended directly to <body> (see ResumePreview.tsx), completely
+   separate from the app's normal component tree. This avoids the
+   pagination problems that came from trying to hide/absolutely-position
+   the resume within the app's own layout — browsers paginate normal,
+   un-positioned content correctly; they do NOT reliably paginate content
+   that's been made position:absolute or nested inside flex/scroll
+   containers, which is what the earlier visibility-hack approach required.
+*/
+#resume-print-portal {
+  display: none;
+}
 @media print {
-  body * {
-    visibility: hidden;
+  #root {
+    display: none !important;
   }
-  #resume-print-area,
-  #resume-print-area * {
-    visibility: visible;
-  }
-  #resume-print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+  #resume-print-portal {
+    display: block !important;
   }
   @page {
     margin: 0;
-  }
-}
-
-/* On-screen only: shrinks the A4 preview to fit comfortably in the
-   viewport. Applying transform: scale() to an element being printed
-   breaks the browser's multi-page pagination (content gets clipped to a
-   single page instead of flowing across pages) — so this scale must be
-   switched off specifically for print, not just visually hidden. */
-.resume-preview-scale {
-  transform: scale(0.85);
-  transform-origin: top center;
-}
-@media print {
-  .resume-preview-scale {
-    transform: none !important;
   }
 }
