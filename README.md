@@ -119,6 +119,27 @@ rasterized image of one.
 Dashboard using `supabase/functions-dashboard-copy-paste/extract-resume-data.ts`
 (same copy-paste pattern as the other three functions).
 
+## Module: JD Analyzer (new — closes a long-open gap)
+
+**Product decision:** one active JD per user, replaced on new paste — same
+pattern as `resumes`. Breakdown (required/preferred skills, responsibilities,
+etc.) and the resume match (score, missing keywords, gap, recommendations)
+are combined into one Claude call and one `jd_analyses` row, since there's
+only ever one active resume — "match" is never ambiguous about what it's
+matching against.
+
+**Also included:** `interview_sessions` gains a nullable `jd_id` column —
+the long-planned link flagged back in the Interview Coach migration's
+comments. The column exists now; wiring the Interview Coach UI to actually
+use it (let someone generate questions grounded in a specific JD, not just
+resume + manually-typed role) is the next follow-up, not done in this pass.
+
+**New migration:** `0006_jd_analyzer.sql`
+
+**New Edge Function:** `analyze-jd` — deploy via
+`supabase/functions-dashboard-copy-paste/analyze-jd.ts`, same copy-paste
+pattern as the other four functions.
+
 ## Setup
 
 1. **Install dependencies**
@@ -134,8 +155,8 @@ Dashboard using `supabase/functions-dashboard-copy-paste/extract-resume-data.ts`
 
 3. **Run the migrations, in order** — in the Supabase SQL editor, run
    `0001_init_profiles.sql`, `0002_usage_plans.sql`,
-   `0003_resume_analyzer.sql`, `0004_interview_coach.sql`, then
-   `0005_resume_builder.sql`.
+   `0003_resume_analyzer.sql`, `0004_interview_coach.sql`,
+   `0005_resume_builder.sql`, then `0006_jd_analyzer.sql`.
 
 4. **Enable Google OAuth (optional)** — Supabase Dashboard → Authentication →
    Providers → Google, add your OAuth client ID/secret.

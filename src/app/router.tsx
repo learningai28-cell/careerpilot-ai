@@ -1,14 +1,13 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import { ScanSearch } from "lucide-react";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { SignupPage } from "@/features/auth/SignupPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { DashboardShell } from "@/shared/layout/DashboardShell";
 import { DashboardHome } from "@/features/dashboard/DashboardHome";
-import { ModulePlaceholder } from "@/shared/components/ModulePlaceholder";
 import { ResumeAnalyzerPage } from "@/features/resume-analyzer/ResumeAnalyzerPage";
 import { InterviewCoachPage } from "@/features/interview-coach/InterviewCoachPage";
 import { ResumeBuilderPage } from "@/features/resume-builder/ResumeBuilderPage";
+import { JDAnalyzerPage } from "@/features/jd-analyzer/JDAnalyzerPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/dashboard" replace /> },
@@ -32,7 +31,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "jd-analyzer",
-            element: <ModulePlaceholder icon={ScanSearch} title="JD Analyzer" />,
+            element: <JDAnalyzerPage />,
           },
           {
             path: "interview-coach",
