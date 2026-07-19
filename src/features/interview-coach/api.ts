@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/lib/supabaseClient";
+import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
 import { InterviewAnswer, InterviewQuestion, InterviewSession, Difficulty } from "./types";
 
 async function authHeader() {
@@ -6,11 +7,6 @@ async function authHeader() {
   const token = data.session?.access_token;
   if (!token) throw new Error("Not signed in.");
   return { Authorization: `Bearer ${token}` };
-}
-
-function unwrapFunctionError(error: any): never {
-  const message = error?.context?.error ?? error?.message ?? "Something went wrong.";
-  throw new Error(message);
 }
 
 export async function generateInterview(params: {
@@ -23,7 +19,7 @@ export async function generateInterview(params: {
     headers: await authHeader(),
     body: params,
   });
-  if (error) unwrapFunctionError(error);
+  if (error) await unwrapFunctionError(error);
   if (data?.error) throw new Error(data.error);
   return { session: data.session, questions: data.questions };
 }
@@ -36,7 +32,7 @@ export async function scoreAnswer(params: {
     headers: await authHeader(),
     body: { questionId: params.questionId, answerText: params.answerText },
   });
-  if (error) unwrapFunctionError(error);
+  if (error) await unwrapFunctionError(error);
   if (data?.error) throw new Error(data.error);
   return data.answer;
 }

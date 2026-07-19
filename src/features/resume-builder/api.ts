@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/lib/supabaseClient";
+import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
 import { ResumeProfileData } from "./types";
 
 async function authHeader() {
@@ -8,16 +9,11 @@ async function authHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
-function unwrapFunctionError(error: any): never {
-  const message = error?.context?.error ?? error?.message ?? "Something went wrong.";
-  throw new Error(message);
-}
-
 export async function extractResumeData(): Promise<ResumeProfileData> {
   const { data, error } = await supabase.functions.invoke("extract-resume-data", {
     headers: await authHeader(),
   });
-  if (error) unwrapFunctionError(error);
+  if (error) await unwrapFunctionError(error);
   if (data?.error) throw new Error(data.error);
   return data.profile as ResumeProfileData;
 }

@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/lib/supabaseClient";
+import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
 import { Resume, ResumeAnalysis } from "./types";
 
 const ALLOWED_TYPES: Record<string, "pdf" | "docx"> = {
@@ -69,9 +70,7 @@ export async function analyzeResume(): Promise<ResumeAnalysis> {
   });
 
   if (error) {
-    // supabase-js surfaces non-2xx as a generic error; unwrap the body if present
-    const message = (error as any)?.context?.error ?? error.message;
-    throw new Error(message);
+    await unwrapFunctionError(error);
   }
   if (data?.error) throw new Error(data.error);
 
