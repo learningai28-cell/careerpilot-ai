@@ -140,6 +140,18 @@ resume + manually-typed role) is the next follow-up, not done in this pass.
 `supabase/functions-dashboard-copy-paste/analyze-jd.ts`, same copy-paste
 pattern as the other four functions.
 
+## Interview Coach ↔ JD Analyzer link (new — closes the last long-open gap)
+
+If a JD has been analyzed, the Interview Coach setup form shows an extra
+option: **"Base questions on my analyzed JD"** instead of a manually typed
+role. When selected, `generate-interview` pulls the actual JD text and
+grounds technical/case-study questions in its real requirements — not just
+the role title. Falls back to manual entry seamlessly if no JD exists yet;
+nothing about the existing manual flow changed.
+
+`interview_sessions.jd_id` (added in the JD Analyzer migration) now
+actually gets populated when this option is used.
+
 ## Setup
 
 1. **Install dependencies**

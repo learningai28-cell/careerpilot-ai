@@ -14,7 +14,7 @@ const FREE_TIER_LIMITS: Record<string, number> = {
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const MODEL = "claude-sonnet-4-6";
 
-const INTERVIEW_GENERATION_SYSTEM_PROMPT = `You are a senior interview coach and hiring manager with experience across HR, technical, and case-based interviewing. Given a candidate's resume text, their target role, years of experience, and a difficulty level, generate a realistic interview question set.
+const INTERVIEW_GENERATION_SYSTEM_PROMPT = `You are a senior interview coach and hiring manager with experience across HR, technical, and case-based interviewing. Given a candidate's resume text, a target role (either stated directly, or a specific job description below), years of experience, and a difficulty level, generate a realistic interview question set.
 
 Respond with ONLY a JSON object matching this exact shape:
 
@@ -30,13 +30,22 @@ Respond with ONLY a JSON object matching this exact shape:
   ]
 }
 
-Generate exactly 8 questions total: 2 HR, 2 technical, 2 behavioural, 2 case_study. Calibrate difficulty and depth to the stated experience level and requested difficulty. Questions must reference specifics from the resume where relevant (a past role, a named skill, a metric) — never generic questions that could apply to anyone.
+Generate exactly 8 questions total: 2 HR, 2 technical, 2 behavioural, 2 case_study. Calibrate difficulty and depth to the stated experience level and requested difficulty. Questions must reference specifics from the resume where relevant (a past role, a named skill, a metric) — never generic questions that could apply to anyone. If a specific job description is provided, ground technical and case-study questions in its actual stated requirements and responsibilities, not just the general role title.
 
 Do not wrap the JSON in markdown fences. Do not include any text outside the JSON object.`;
 
-function buildUserPrompt(params: { resumeText: string; targetRole: string; experienceYears: number | null; difficulty: string }): string {
-  const { resumeText, targetRole, experienceYears, difficulty } = params;
-  return `Candidate resume text:\n---\n${resumeText}\n---\n\nTarget role: ${targetRole}\nExperience: ${experienceYears ?? "not specified"} years\nRequested difficulty: ${difficulty}\n\nGenerate the question set now per the instructions.`;
+function buildUserPrompt(params: {
+  resumeText: string;
+  targetRole: string;
+  experienceYears: number | null;
+  difficulty: string;
+  jdText?: string | null;
+}): string {
+  const { resumeText, targetRole, experienceYears, difficulty, jdText } = params;
+  const jdBlock = jdText
+    ? `\n\nThe candidate is preparing for this specific job posting — ground the questions in its actual requirements, not just the general role title:\n---\n${jdText}\n---`
+    : "";
+  return `Candidate resume text:\n---\n${resumeText}\n---\n\nTarget role: ${targetRole}\nExperience: ${experienceYears ?? "not specified"} years\nRequested difficulty: ${difficulty}${jdBlock}\n\nGenerate the question set now per the instructions.`;
 }
 
 async function callClaudeJSON<T>(systemPrompt: string, userPrompt: string) {
@@ -130,9 +139,30 @@ Deno.serve(async (req) => {
     if (authError || !user) return cors({ error: "Invalid session" }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const targetRole: string | undefined = body.targetRole?.trim();
+    const useJD: boolean = body.useJD === true;
+    let targetRole: string | undefined = body.targetRole?.trim();
     const experienceYears: number | null = body.experienceYears ?? null;
     const difficulty: string = body.difficulty ?? "medium";
+
+    let jdText: string | null = null;
+    let jdId: string | null = null;
+
+    if (useJD) {
+      const { data: jd } = await supabase
+        .from("job_descriptions")
+        .select("id, title, raw_text")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!jd?.raw_text) {
+        return cors(
+          { error: "No analyzed job description found. Analyze one in JD Analyzer first, or switch to manual role entry." },
+          422
+        );
+      }
+      jdText = jd.raw_text;
+      jdId = jd.id;
+      if (!targetRole) targetRole = jd.title ?? "the role described in the job posting";
+    }
 
     if (!targetRole) return cors({ error: "targetRole is required." }, 400);
     if (!["easy", "medium", "hard"].includes(difficulty)) {
@@ -149,12 +179,12 @@ Deno.serve(async (req) => {
 
     const { data: generated, tokensUsed } = await callClaudeJSON<{ questions: any[] }>(
       INTERVIEW_GENERATION_SYSTEM_PROMPT,
-      buildUserPrompt({ resumeText: resume.raw_text, targetRole, experienceYears, difficulty })
+      buildUserPrompt({ resumeText: resume.raw_text, targetRole, experienceYears, difficulty, jdText })
     );
 
     const { data: session, error: sessionError } = await supabase
       .from("interview_sessions")
-      .insert({ user_id: user.id, resume_id: resume.id, target_role: targetRole, experience_years: experienceYears, difficulty, status: "active" })
+      .insert({ user_id: user.id, resume_id: resume.id, jd_id: jdId, target_role: targetRole, experience_years: experienceYears, difficulty, status: "active" })
       .select()
       .single();
 

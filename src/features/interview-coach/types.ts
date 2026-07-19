@@ -6,6 +6,7 @@ export interface InterviewSession {
   id: string;
   user_id: string;
   resume_id: string | null;
+  jd_id: string | null;
   target_role: string;
   experience_years: number | null;
   difficulty: Difficulty;

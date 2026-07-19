@@ -31,9 +31,10 @@ export function useGenerateInterview() {
 
   return useMutation({
     mutationFn: (params: {
-      targetRole: string;
+      targetRole?: string;
       experienceYears: number | null;
       difficulty: Difficulty;
+      useJD?: boolean;
     }) => generateInterview(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["interview-session", user?.id] });

@@ -14,9 +14,10 @@ function unwrapFunctionError(error: any): never {
 }
 
 export async function generateInterview(params: {
-  targetRole: string;
+  targetRole?: string;
   experienceYears: number | null;
   difficulty: Difficulty;
+  useJD?: boolean;
 }): Promise<{ session: InterviewSession; questions: InterviewQuestion[] }> {
   const { data, error } = await supabase.functions.invoke("generate-interview", {
     headers: await authHeader(),
