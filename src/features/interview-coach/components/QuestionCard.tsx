@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Volume2, Square, Mic, MicOff } from "lucide-react";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Textarea } from "@/shared/components/Textarea";
 import { Button } from "@/shared/components/Button";
+import { useSpeechSynthesis } from "@/shared/hooks/useSpeechSynthesis";
+import { useSpeechRecognition } from "@/shared/hooks/useSpeechRecognition";
 import { InterviewQuestion, InterviewAnswer } from "../types";
 import { useScoreAnswer } from "../hooks";
 import { AnswerFeedback } from "./AnswerFeedback";
@@ -37,7 +39,41 @@ export function QuestionCard({
   const [feedback, setFeedback] = useState<InterviewAnswer | null>(existingAnswer ?? null);
   const scoreAnswer = useScoreAnswer();
 
+  const { speak, stop: stopSpeaking, speaking, supported: ttsSupported } = useSpeechSynthesis();
+  const {
+    startListening,
+    stopListening,
+    listening,
+    transcript,
+    resetTranscript,
+    supported: sttSupported,
+  } = useSpeechRecognition();
+
+  // Feed transcribed speech into the answer textarea as it comes in.
+  useEffect(() => {
+    if (transcript) setAnswerText(transcript);
+  }, [transcript]);
+
+  const handleListenToQuestion = () => {
+    if (speaking) {
+      stopSpeaking();
+      return;
+    }
+    const fullText = [question.question, ...question.follow_up_questions].join(". ");
+    speak(fullText);
+  };
+
+  const handleToggleMic = () => {
+    if (listening) {
+      stopListening();
+    } else {
+      resetTranscript();
+      startListening();
+    }
+  };
+
   const handleSubmit = async () => {
+    if (listening) stopListening();
     if (!answerText.trim()) return;
     try {
       const result = await scoreAnswer.mutateAsync({
@@ -69,7 +105,22 @@ export function QuestionCard({
           <span className="ml-auto text-[11px] text-slate-400">Q{index + 1}</span>
         </div>
 
-        <p className="text-sm font-medium leading-relaxed">{question.question}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium leading-relaxed">{question.question}</p>
+          {ttsSupported && (
+            <button
+              onClick={handleListenToQuestion}
+              title={speaking ? "Stop" : "Listen to this question"}
+              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${
+                speaking
+                  ? "bg-signal-500 text-white"
+                  : "bg-paper-100 text-slate-500 hover:bg-paper-100/80 dark:bg-ink-800"
+              }`}
+            >
+              {speaking ? <Square size={12} /> : <Volume2 size={14} />}
+            </button>
+          )}
+        </div>
 
         {question.follow_up_questions.length > 0 && (
           <ul className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
@@ -101,16 +152,41 @@ export function QuestionCard({
               setFeedback(null);
               setPracticing(true);
               setAnswerText("");
+              resetTranscript();
             }}
           />
         ) : practicing ? (
           <div className="mt-3 space-y-2">
-            <Textarea
-              rows={4}
-              placeholder="Type your answer as you'd say it out loud…"
-              value={answerText}
-              onChange={(e) => setAnswerText(e.target.value)}
-            />
+            <div className="relative">
+              <Textarea
+                rows={4}
+                placeholder={
+                  sttSupported
+                    ? "Type your answer, or tap the mic to speak it…"
+                    : "Type your answer as you'd say it out loud…"
+                }
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+              />
+              {sttSupported && (
+                <button
+                  onClick={handleToggleMic}
+                  title={listening ? "Stop recording" : "Speak your answer"}
+                  className={`absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                    listening
+                      ? "bg-rose-500 text-white animate-pulse"
+                      : "bg-signal-500 text-white hover:bg-signal-600"
+                  }`}
+                >
+                  {listening ? <MicOff size={14} /> : <Mic size={14} />}
+                </button>
+              )}
+            </div>
+            {listening && (
+              <p className="text-xs font-medium text-signal-600 dark:text-signal-400">
+                Listening… tap the mic again when you're done.
+              </p>
+            )}
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -119,7 +195,14 @@ export function QuestionCard({
               >
                 {scoreAnswer.isPending ? "Scoring…" : "Submit for feedback"}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setPracticing(false)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (listening) stopListening();
+                  setPracticing(false);
+                }}
+              >
                 Cancel
               </Button>
             </div>

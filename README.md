@@ -152,6 +152,27 @@ nothing about the existing manual flow changed.
 `interview_sessions.jd_id` (added in the JD Analyzer migration) now
 actually gets populated when this option is used.
 
+## Interview Coach audio (new — free, browser-native, no new backend)
+
+Two independent features, both using the browser's built-in Web Speech
+API rather than any paid transcription/TTS service:
+
+- **Listen to a question** — a speaker icon next to each question reads it
+  (plus its follow-ups) aloud via `SpeechSynthesis`. Widely supported;
+  the button only renders if the browser actually supports it.
+- **Speak your answer** — a mic icon in the practice textarea transcribes
+  speech to text live via `SpeechRecognition` (Chrome/Edge — prefixed as
+  `webkitSpeechRecognition`). **Not supported in Firefox or most Safari
+  versions** — the mic button simply doesn't render there, and typing
+  keeps working exactly as before. No degraded/broken state, just a
+  narrower feature surface on unsupported browsers.
+
+New reusable hooks: `src/shared/hooks/useSpeechSynthesis.ts` and
+`useSpeechRecognition.ts` — written generically enough to reuse in any
+future module that wants audio, not Interview-Coach-specific.
+
+**No Edge Function or database changes** — this is 100% client-side.
+
 ## Setup
 
 1. **Install dependencies**
