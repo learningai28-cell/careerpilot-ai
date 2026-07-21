@@ -100,7 +100,10 @@ export function TermsPage() {
       <LegalSection heading="12. Contact us">
         <p>
           Questions about these terms can be sent to{" "}
-          <span className="font-medium">[support email to be added]</span>.
+          <a href="mailto:hello@operix.co.in" className="font-medium text-signal-600 underline dark:text-signal-400">
+            hello@operix.co.in
+          </a>
+          .
         </p>
       </LegalSection>
     </LegalLayout>
