@@ -173,6 +173,21 @@ future module that wants audio, not Interview-Coach-specific.
 
 **No Edge Function or database changes** — this is 100% client-side.
 
+## Resume Builder Suggestions panel (new — free, reuses existing AI output)
+
+Shown only on the edit screen when the current draft came from **auto-fill**
+(not manual entry) — surfaces already-generated results from Resume
+Analyzer (improved summary, missing keywords) and, if run, JD Analyzer
+(missing keywords) as review-and-apply suggestions:
+
+- **Suggested summary** — one click to swap it in, never auto-applied
+- **Missing keywords** — click a chip to add it to Skills; never touches
+  experience bullets
+
+No new AI calls, no new cost — this is purely reusing data that already
+exists in `resume_analyses` / `jd_analyses`. No Edge Function or database
+changes either.
+
 ## Setup
 
 1. **Install dependencies**

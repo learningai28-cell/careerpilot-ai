@@ -11,6 +11,7 @@ import { ChoiceScreen } from "./components/ChoiceScreen";
 import { ProfileForm } from "./components/ProfileForm";
 import { TemplateGallery } from "./components/TemplateGallery";
 import { ResumePreview } from "./components/ResumePreview";
+import { SuggestionsPanel } from "./components/SuggestionsPanel";
 
 type Step = "choice" | "edit" | "template";
 
@@ -91,6 +92,9 @@ export function ResumeBuilderPage() {
         />
       ) : step === "edit" ? (
         <div>
+          {draft.source === "extracted" && (
+            <SuggestionsPanel draft={draft} onChange={setDraft} />
+          )}
           <ProfileForm value={draft} onChange={setDraft} />
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setStep("choice")}>
