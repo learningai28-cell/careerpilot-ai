@@ -188,6 +188,24 @@ No new AI calls, no new cost — this is purely reusing data that already
 exists in `resume_analyses` / `jd_analyses`. No Edge Function or database
 changes either.
 
+## Mobile navigation fix (new)
+
+The sidebar was previously desktop-only (`hidden md:flex`) — anyone on a
+phone had no way to switch between modules at all. Now:
+
+- **Below the `md` breakpoint**, the sidebar becomes a slide-out drawer,
+  opened via a hamburger button that appears in the Topbar (only on
+  mobile), closed by tapping the backdrop, the X button, or navigating to
+  any page (auto-closes on route change — see `DashboardShell.tsx`).
+- **At `md` and above**, behavior is exactly what it was before — sidebar
+  always visible, no hamburger button, no backdrop, nothing changed.
+- The Topbar itself is also more compact on narrow screens (email address
+  and "Sign out" label hide below `sm`, icon-only equivalents remain) so
+  the hamburger, usage badge, and theme toggle all fit comfortably.
+
+No new dependencies, no backend changes — pure layout/CSS work across
+`Sidebar.tsx`, `Topbar.tsx`, and `DashboardShell.tsx`.
+
 ## Setup
 
 1. **Install dependencies**
