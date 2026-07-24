@@ -1,7 +1,15 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-export function LegalLayout({ title, children }: { title: string; children: ReactNode }) {
+export function LegalLayout({
+  title,
+  lastUpdated,
+  children,
+}: {
+  title: string;
+  lastUpdated: string;
+  children: ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-paper-50 dark:bg-ink-950">
       <header className="border-b border-line-light bg-white px-6 py-4 dark:border-line-dark dark:bg-ink-900">
@@ -20,7 +28,7 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="mb-2 font-display text-2xl font-semibold">{title}</h1>
         <p className="mb-8 text-sm text-slate-500 dark:text-slate-400">
-          Last updated: 20 July 2026
+          Last updated: {lastUpdated}
         </p>
         <div className="legal-content space-y-6 text-sm leading-relaxed text-ink-950 dark:text-paper-50">
           {children}

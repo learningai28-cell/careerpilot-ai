@@ -2,7 +2,7 @@ import { LegalLayout, LegalSection } from "@/shared/layout/LegalLayout";
 
 export function PrivacyPage() {
   return (
-    <LegalLayout title="Privacy Policy">
+    <LegalLayout title="Privacy Policy" lastUpdated="22 July 2026">
       <LegalSection heading="1. Who we are">
         <p>
           CareerPilot AI ("CareerPilot", "we", "us") is a product operated under Operix. This
@@ -73,10 +73,16 @@ export function PrivacyPage() {
             and feedback you see in the app. Anthropic does not use API content to train its
             models by default.
           </li>
+          <li>
+            <strong>PostHog</strong> — we use PostHog to catch technical errors and to understand
+            which features are actually used, so we can fix problems and improve the product.
+            PostHog may capture your device/browser type, pages visited, and actions you take in
+            the app. We do not use it for advertising, and we do not share this data with
+            advertisers.
+          </li>
         </ul>
         <p>
-          We do not currently use third-party advertising or tracking cookies. If we introduce
-          privacy-respecting product analytics in the future, we will update this policy first.
+          We do not use third-party advertising trackers or sell data to advertisers.
         </p>
       </LegalSection>
 

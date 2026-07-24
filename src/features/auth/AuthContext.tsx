@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/shared/lib/supabaseClient";
+import { identifyUser, resetAnalyticsIdentity } from "@/shared/lib/analytics";
 
 interface AuthContextValue {
   user: User | null;
@@ -22,10 +23,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
+      if (data.session?.user) {
+        identifyUser(data.session.user.id, data.session.user.email ?? undefined);
+      }
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      if (newSession?.user) {
+        identifyUser(newSession.user.id, newSession.user.email ?? undefined);
+      } else {
+        resetAnalyticsIdentity();
+      }
     });
 
     return () => subscription.subscription.unsubscribe();

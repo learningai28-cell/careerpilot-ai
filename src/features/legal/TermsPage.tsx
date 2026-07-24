@@ -2,7 +2,7 @@ import { LegalLayout, LegalSection } from "@/shared/layout/LegalLayout";
 
 export function TermsPage() {
   return (
-    <LegalLayout title="Terms of Service">
+    <LegalLayout title="Terms of Service" lastUpdated="20 July 2026">
       <LegalSection heading="1. Acceptance of terms">
         <p>
           By creating an account or using CareerPilot AI, you agree to these Terms of Service and

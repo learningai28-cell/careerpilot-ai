@@ -206,6 +206,33 @@ phone had no way to switch between modules at all. Now:
 No new dependencies, no backend changes — pure layout/CSS work across
 `Sidebar.tsx`, `Topbar.tsx`, and `DashboardShell.tsx`.
 
+## Error monitoring + analytics (new — PostHog)
+
+One tool covers both, on PostHog's free tier (100,000 events/month):
+
+- **Error monitoring** — uncaught JS errors are captured automatically
+  (`capture_exceptions: true`), and a new `ErrorBoundary` catches React
+  render errors specifically, reports them, and shows a recoverable
+  fallback screen instead of the blank crashed page that would previously
+  happen with no explanation.
+- **Analytics** — pageviews and clicks are captured automatically
+  (`autocapture: true`), and signed-in users are identified by their user
+  ID (not anonymous), reset on sign-out so a shared device doesn't mix
+  identities.
+
+**Silently disabled without configuration** — `analytics.ts` no-ops
+entirely if `VITE_POSTHOG_KEY` isn't set, so local development never
+sends events anywhere.
+
+**This required a Privacy Policy update** — it previously said "if we
+introduce analytics, we'll update this policy first"; PostHog is now
+disclosed by name in section 4, done in the same pass as the code, not
+after.
+
+**New GitHub secrets needed** (same pattern as the Supabase ones):
+`VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` — get them from your PostHog
+project settings after creating a free account at posthog.com.
+
 ## Setup
 
 1. **Install dependencies**
