@@ -51,9 +51,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // Same problem the router basename fix addressed: this app can be
+    // deployed under GitHub Pages' subpath (/careerpilot-ai/...) or at a
+    // custom domain's root (/...) later. Hardcoding "/dashboard" here
+    // silently dropped the subpath, sending Google's OAuth callback to a
+    // URL that doesn't exist. Detected at runtime so it keeps working
+    // after the domain switch without touching this again.
+    const base = window.location.pathname.startsWith("/careerpilot-ai") ? "/careerpilot-ai" : "";
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin + "/dashboard" },
+      options: { redirectTo: window.location.origin + base + "/dashboard" },
     });
   };
 
