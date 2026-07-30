@@ -13,6 +13,10 @@
   </head>
   <body class="bg-paper-50 dark:bg-ink-950">
     <div id="root"></div>
+    <!-- Razorpay's checkout modal library — loaded globally so it's ready
+         before the Billing page mounts, same pattern as the Google Fonts
+         links above. -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

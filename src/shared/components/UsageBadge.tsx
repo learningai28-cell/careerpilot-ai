@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Crown } from "lucide-react";
 import { useUsage } from "@/shared/hooks/useUsage";
 import { MODULE_LABELS } from "@/shared/lib/usageLimits";
@@ -7,6 +8,7 @@ import { Button } from "./Button";
 export function UsageBadge() {
   const { data } = useUsage();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (!data) return null;
 
@@ -51,7 +53,14 @@ export function UsageBadge() {
               </div>
             ))}
           </div>
-          <Button size="sm" className="mt-3 w-full">
+          <Button
+            size="sm"
+            className="mt-3 w-full"
+            onClick={() => {
+              setOpen(false);
+              navigate("/dashboard/billing");
+            }}
+          >
             Upgrade to Pro
           </Button>
         </div>

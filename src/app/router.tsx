@@ -8,6 +8,7 @@ import { ResumeAnalyzerPage } from "@/features/resume-analyzer/ResumeAnalyzerPag
 import { InterviewCoachPage } from "@/features/interview-coach/InterviewCoachPage";
 import { ResumeBuilderPage } from "@/features/resume-builder/ResumeBuilderPage";
 import { JDAnalyzerPage } from "@/features/jd-analyzer/JDAnalyzerPage";
+import { BillingPage } from "@/features/billing/BillingPage";
 import { TermsPage } from "@/features/legal/TermsPage";
 import { PrivacyPage } from "@/features/legal/PrivacyPage";
 
@@ -50,6 +51,10 @@ export const router = createBrowserRouter(
             {
               path: "interview-coach",
               element: <InterviewCoachPage />,
+            },
+            {
+              path: "billing",
+              element: <BillingPage />,
             },
           ],
         },
