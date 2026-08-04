@@ -13,9 +13,11 @@ declare global {
 interface RazorpayCheckoutProps {
   /** Called after the payment is verified and the profile is confirmed Pro. */
   onUpgraded?: () => void;
+  /** Button label when idle. Defaults to "Upgrade to Pro". */
+  label?: string;
 }
 
-export function RazorpayCheckout({ onUpgraded }: RazorpayCheckoutProps) {
+export function RazorpayCheckout({ onUpgraded, label = "Upgrade to Pro" }: RazorpayCheckoutProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +37,7 @@ export function RazorpayCheckout({ onUpgraded }: RazorpayCheckoutProps) {
         currency: order.currency,
         order_id: order.orderId,
         name: "CareerPilot AI",
-        description: "Pro Plan Upgrade",
+        description: "Pro Plan — 3 Months",
         prefill: { email: user?.email ?? undefined },
         theme: { color: "#17B890" }, // signal-500, matches the app's brand color
         handler: async (response: {
@@ -48,7 +50,15 @@ export function RazorpayCheckout({ onUpgraded }: RazorpayCheckoutProps) {
             toast.success("You're on Pro now — unlimited access across every module.");
             onUpgraded?.();
           } catch (err: any) {
-            toast.error(err.message ?? "Payment went through, but verification failed. Contact support.");
+            // Payment already succeeded on Razorpay's side at this point —
+            // this catch means verification/upgrade failed AFTER the charge,
+            // so the message must not suggest retrying the payment.
+            toast.error(
+              err.message ??
+                "Payment succeeded but we couldn't confirm it automatically. Don't pay again — contact support with your payment ID."
+            );
+          } finally {
+            setLoading(false);
           }
         },
         modal: {
@@ -70,7 +80,7 @@ export function RazorpayCheckout({ onUpgraded }: RazorpayCheckoutProps) {
 
   return (
     <Button onClick={handleClick} disabled={loading}>
-      {loading ? "Starting checkout…" : "Upgrade to Pro"}
+      {loading ? "Starting checkout…" : label}
     </Button>
   );
 }
