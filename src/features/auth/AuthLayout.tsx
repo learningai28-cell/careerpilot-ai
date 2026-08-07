@@ -46,7 +46,18 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
       {/* Form panel */}
       <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-12 lg:w-1/2 lg:px-20">
-        <div className="mx-auto w-full max-w-sm animate-fade-up">{children}</div>
+        <div className="mx-auto w-full max-w-sm animate-fade-up">
+          {children}
+          <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+            Need help?{" "}
+            <a
+              href="mailto:hello@operix.co.in"
+              className="font-medium text-signal-600 dark:text-signal-400"
+            >
+              hello@operix.co.in
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

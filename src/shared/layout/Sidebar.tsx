@@ -82,6 +82,27 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         <div className="rounded-xl border border-dashed border-line-light px-3 py-3 text-xs text-slate-500 dark:border-line-dark dark:text-slate-400">
           More modules — salary negotiation, LinkedIn review, job tracker — land here as they ship.
         </div>
+
+        <div className="mt-3 space-y-1.5 px-2 text-xs text-slate-400 dark:text-slate-500">
+          <p>
+            Need help?{" "}
+            <a
+              href="mailto:hello@operix.co.in"
+              className="font-medium text-signal-600 dark:text-signal-400"
+            >
+              hello@operix.co.in
+            </a>
+          </p>
+          <p>
+            <a
+              href="mailto:hello@operix.co.in?subject=CareerPilot%20AI%20feedback"
+              className="font-medium text-signal-600 dark:text-signal-400"
+            >
+              Send feedback
+            </a>{" "}
+            — tell us what's working or not.
+          </p>
+        </div>
       </aside>
     </>
   );
