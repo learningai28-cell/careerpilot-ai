@@ -13,6 +13,8 @@ export interface ModuleUsage {
 
 export interface UsageSummary {
   plan: "free" | "pro";
+  /** Only meaningful when plan === "pro". Null means it was never set (pre-3.0 rows). */
+  proExpiresAt: string | null;
   perModule: ModuleUsage[];
 }
 
@@ -30,11 +32,18 @@ export function useUsage() {
     queryFn: async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("plan")
+        .select("plan, pro_expires_at")
         .eq("id", user!.id)
         .single();
 
-      const plan = (profile?.plan as "free" | "pro") ?? "free";
+      // Pro renews every 3 months, not a lifetime purchase — profiles.plan
+      // staying 'pro' doesn't mean the paid period hasn't lapsed. Nothing
+      // in the database auto-flips this back to 'free' (see
+      // migrations/0009_pro_expiry.sql), so it's checked here at read time.
+      const isProActive =
+        profile?.plan === "pro" &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date());
+      const plan: "free" | "pro" = isProActive ? "pro" : "free";
 
       const { data: events } = await supabase
         .from("usage_events")
@@ -60,7 +69,7 @@ export function useUsage() {
         }
       );
 
-      return { plan, perModule };
+      return { plan, proExpiresAt: profile?.pro_expires_at ?? null, perModule };
     },
   });
 }

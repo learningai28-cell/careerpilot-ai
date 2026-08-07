@@ -9,7 +9,7 @@
  * both places.
  */
 export const FREE_TIER_LIMITS: Record<string, number> = {
-  resume_analyzer: 2,
+  resume_analyzer: 1,
   jd_analyzer: 2,
   interview_coach: 1,
   career_roadmap: 1,
