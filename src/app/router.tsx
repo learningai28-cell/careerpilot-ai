@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { SignupPage } from "@/features/auth/SignupPage";
+import { ForgotPasswordPage } from "@/features/auth/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { DashboardShell } from "@/shared/layout/DashboardShell";
 import { DashboardHome } from "@/features/dashboard/DashboardHome";
@@ -26,6 +28,8 @@ export const router = createBrowserRouter(
     { path: "/", element: <Navigate to="/dashboard" replace /> },
     { path: "/login", element: <LoginPage /> },
     { path: "/signup", element: <SignupPage /> },
+    { path: "/forgot-password", element: <ForgotPasswordPage /> },
+    { path: "/reset-password", element: <ResetPasswordPage /> },
     { path: "/terms", element: <TermsPage /> },
     { path: "/privacy", element: <PrivacyPage /> },
     {

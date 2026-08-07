@@ -83,8 +83,9 @@ export function ResumePreview({
 
       <p className="mt-3 text-center text-xs text-slate-400">
         For PDF: in the print dialog that opens, choose <strong>"Save as PDF"</strong> as the
-        destination. The Word download is fully editable but uses plain formatting rather than
-        the chosen template's design — best for when you need to make further changes yourself.
+        destination. Not happy with how a bullet reads? Download the Word file and edit the
+        wording directly — it's fully editable text, just with plain formatting rather than the
+        chosen template's design.
       </p>
     </div>
   );

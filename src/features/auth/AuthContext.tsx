@@ -11,6 +11,8 @@ interface AuthContextValue {
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -68,6 +70,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const sendPasswordResetEmail = async (email: string) => {
+    // Same subpath problem the router basename fix and Google OAuth redirect
+    // both had to account for: this app can be deployed under GitHub
+    // Pages' subpath (/careerpilot-ai/...) or a custom domain's root (/...).
+    // Detected at runtime so the emailed link keeps working after a domain
+    // switch without touching this again.
+    const base = window.location.pathname.startsWith("/careerpilot-ai") ? "/careerpilot-ai" : "";
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + base + "/reset-password",
+    });
+    return { error: error?.message ?? null };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    // Valid only when called from the reset-password page after the user
+    // has followed the emailed link — Supabase establishes a temporary
+    // "recovery" session from that link's token, which is what authorizes
+    // this call. Calling it without that context fails with no session.
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error?.message ?? null };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -78,6 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUpWithPassword,
         signInWithGoogle,
         signOut,
+        sendPasswordResetEmail,
+        updatePassword,
       }}
     >
       {children}
