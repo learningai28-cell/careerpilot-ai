@@ -75,11 +75,13 @@ const faqs = [
   },
 ];
 
-const freeLimits: [string, number][] = [
-  ["Resume analyses", FREE_TIER_LIMITS.resume_analyzer],
-  ["JD analyses", FREE_TIER_LIMITS.jd_analyzer],
-  ["Interview sessions", FREE_TIER_LIMITS.interview_coach],
-  ["Resume auto-fills", FREE_TIER_LIMITS.resume_builder_extract],
+// [singular, plural, limit] — so "1 resume analysis" reads correctly.
+const freeLimits: [string, string, number][] = [
+  ["resume analysis", "resume analyses", FREE_TIER_LIMITS.resume_analyzer],
+  ["JD analysis", "JD analyses", FREE_TIER_LIMITS.jd_analyzer],
+  ["mock interview session", "mock interview sessions", FREE_TIER_LIMITS.interview_coach],
+  ["answer feedback", "answer feedbacks", FREE_TIER_LIMITS.interview_answer],
+  ["resume auto-fill", "resume auto-fills", FREE_TIER_LIMITS.resume_builder_extract],
 ];
 
 function Logo() {
@@ -212,11 +214,11 @@ export function LandingPage() {
               <CardBody className="pt-4">
                 <p className="text-sm text-slate-600 dark:text-slate-400">Every month:</p>
                 <ul className="mt-2 space-y-2 text-sm">
-                  {freeLimits.map(([label, n]) => (
-                    <li key={label} className="flex items-start gap-2">
+                  {freeLimits.map(([one, many, n]) => (
+                    <li key={many} className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-signal-500" aria-hidden="true" />
                       <span>
-                        <span className="data-figure font-medium">{n}</span> {label.toLowerCase()}
+                        <span className="data-figure font-medium">{n}</span> {n === 1 ? one : many}
                       </span>
                     </li>
                   ))}
