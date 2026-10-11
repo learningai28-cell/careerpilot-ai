@@ -1,5 +1,7 @@
 // supabase/functions/_shared/prompts/resumeDataExtraction.ts
 
+import { capText, MAX_RESUME_CHARS } from "./limits.ts";
+
 export const RESUME_DATA_EXTRACTION_SYSTEM_PROMPT = `You are an expert resume parser. Given the raw extracted text of a resume, restructure it into clean, normalized fields. Preserve the person's actual wording in bullets and summary where reasonable — you're organizing, not rewriting from scratch.
 
 Respond with ONLY a JSON object matching this exact shape:
@@ -26,6 +28,7 @@ Order experience and education most-recent-first. If a field genuinely isn't pre
 
 Do not wrap the JSON in markdown fences. Do not include any text outside the JSON object.`;
 
-export function buildResumeDataExtractionUserPrompt(resumeText: string): string {
+export function buildResumeDataExtractionUserPrompt(rawResumeText: string): string {
+  const resumeText = capText(rawResumeText, MAX_RESUME_CHARS);
   return `Here is the resume text to restructure:\n\n---\n${resumeText}\n---\n\nExtract and structure it now per the instructions.`;
 }

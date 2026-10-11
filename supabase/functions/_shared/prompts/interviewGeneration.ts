@@ -1,5 +1,7 @@
 // supabase/functions/_shared/prompts/interviewGeneration.ts
 
+import { capText, MAX_JD_CHARS, MAX_RESUME_CHARS } from "./limits.ts";
+
 export const INTERVIEW_GENERATION_SYSTEM_PROMPT = `You are a senior interview coach and hiring manager with experience across HR, technical, and case-based interviewing. Given a candidate's resume text, a target role (either stated directly, or a specific job description below), years of experience, and a difficulty level, generate a realistic interview question set.
 
 Respond with ONLY a JSON object matching this exact shape:
@@ -27,7 +29,9 @@ export function buildInterviewGenerationUserPrompt(params: {
   difficulty: string;
   jdText?: string | null;
 }): string {
-  const { resumeText, targetRole, experienceYears, difficulty, jdText } = params;
+  const { targetRole, experienceYears, difficulty } = params;
+  const resumeText = capText(params.resumeText, MAX_RESUME_CHARS);
+  const jdText = params.jdText ? capText(params.jdText, MAX_JD_CHARS) : params.jdText;
   const jdBlock = jdText
     ? `\n\nThe candidate is preparing for this specific job posting — ground the questions in its actual requirements, not just the general role title:\n---\n${jdText}\n---`
     : "";

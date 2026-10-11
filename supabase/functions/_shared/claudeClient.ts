@@ -1,11 +1,59 @@
 // supabase/functions/_shared/claudeClient.ts
 //
 // Single wrapper around the Anthropic API used by every AI-calling Edge
-// Function. Centralizing this means model version, retry-on-malformed-JSON,
-// and API key handling only exist in one place.
+// Function. Centralizing this means model version, timeouts, retry/backoff,
+// retry-on-malformed-JSON, and API key handling only exist in one place.
+//
+// Reliability: Claude occasionally returns 429/529 (overloaded) or hangs.
+// Rather than surface a raw 500 to the user, we time out each attempt, retry
+// transient failures with backoff, and — if it still fails — throw a
+// ClaudeBusyError whose message is safe to show directly to the user.
+// Everything runs under one shared deadline so we stay inside the Supabase
+// Edge Function wall-clock limit (~150s).
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const MODEL = "claude-sonnet-4-6";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_MAX_TOKENS = 4096;
+
+// --- Timeout / retry tuning -------------------------------------------------
+const ATTEMPT_TIMEOUT_MS = 60_000; // per HTTP attempt
+const TOTAL_BUDGET_MS = 105_000; // hard ceiling across ALL attempts + backoff
+const MAX_RETRIES = 2; // i.e. up to 3 attempts per logical call
+const BASE_BACKOFF_MS = 1_000; // 1s, 2s (+ jitter) between attempts
+const MAX_RETRY_AFTER_MS = 20_000; // never sleep longer than this for retry-after
+const MIN_USEFUL_ATTEMPT_MS = 8_000; // don't start an attempt with less time left
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504, 529]);
+
+/**
+ * Recommended model + output-token budget per task. Callers pass these as
+ * `options`. Rationale:
+ *  - Sonnet where judgement quality is the product (analysis, generation).
+ *  - Haiku for simpler structured tasks (scoring a short answer, reshaping
+ *    resume text into fields) — several times cheaper and faster.
+ *  - maxTokens is sized to the prompt's real JSON output plus ~50-100%
+ *    headroom, because truncated JSON fails the call outright (and triggers
+ *    a paid retry), which costs far more than unused headroom (you only pay
+ *    for tokens actually generated).
+ */
+export const CLAUDE_TASKS = {
+  // ~1.5-2k tokens of JSON (6 lists, up to 10 skills, per-section feedback).
+  resumeAnalysis: { model: "claude-sonnet-4-6", maxTokens: 3500 },
+  // ~1.5-2.5k tokens (JD breakdown lists + match score + gap + recommendations).
+  jdAnalysis: { model: "claude-sonnet-4-6", maxTokens: 4096 },
+  // 8 questions, each with a 3-5 sentence sample answer + follow-ups
+  // ≈ 2.5-3.5k tokens; this is the largest output, so give it the most room.
+  interviewGeneration: { model: "claude-sonnet-4-6", maxTokens: 6000 },
+  // Short feedback object (~500-700 tokens). Simple rubric task -> Haiku.
+  answerScoring: { model: "claude-haiku-5-5", maxTokens: 1500 },
+  // Mechanical restructuring; output is roughly as long as the resume itself
+  // (up to ~25k chars ≈ 6k tokens input cap), so allow generous room. Haiku.
+  resumeDataExtraction: { model: "claude-haiku-5-5", maxTokens: 8000 },
+} as const;
+
+export interface ClaudeCallOptions {
+  model?: string;
+  maxTokens?: number;
+}
 
 interface ClaudeJSONResult<T> {
   data: T;
@@ -13,41 +61,146 @@ interface ClaudeJSONResult<T> {
 }
 
 /**
+ * Thrown when Claude is overloaded / timing out and retries are exhausted.
+ * The message is user-facing; the request never produced a usable result, so
+ * callers should NOT count it against the user's plan usage.
+ */
+export class ClaudeBusyError extends Error {
+  constructor(
+    message = "Our AI is busy right now. Please try again in a minute — this attempt wasn't counted against your plan."
+  ) {
+    super(message);
+    this.name = "ClaudeBusyError";
+  }
+}
+
+export function isClaudeBusyError(err: unknown): err is ClaudeBusyError {
+  return err instanceof ClaudeBusyError;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Parses a `retry-after` header (seconds or HTTP date) into ms, or null. */
+function parseRetryAfterMs(value: string | null): number | null {
+  if (!value) return null;
+  const secs = Number(value);
+  if (Number.isFinite(secs)) return Math.max(0, secs * 1000);
+  const date = Date.parse(value);
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now());
+  return null;
+}
+
+/**
+ * Sends one logical request to the Messages API with timeout + retry.
+ * Returns the parsed response JSON. Throws ClaudeBusyError when transient
+ * failures persist, or a plain Error for non-retryable failures.
+ */
+async function fetchWithRetry(
+  body: string,
+  deadline: number
+): Promise<any> {
+  for (let attempt = 0; ; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_USEFUL_ATTEMPT_MS) throw new ClaudeBusyError();
+
+    let retryAfterMs: number | null = null;
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      Math.min(ATTEMPT_TIMEOUT_MS, remaining)
+    );
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body,
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        // Body read stays under the same abort signal/timer.
+        return await response.json();
+      }
+
+      if (!RETRYABLE_STATUS.has(response.status)) {
+        // 400/401/403/404/413 etc: retrying can't help.
+        const text = await response.text();
+        throw new Error(`Claude API error (${response.status}): ${text}`);
+      }
+
+      retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+      await response.body?.cancel();
+      console.warn(`Claude API transient error ${response.status} (attempt ${attempt + 1})`);
+    } catch (err) {
+      // Timeouts and network failures are retryable; our own thrown Errors
+      // for non-retryable statuses are not (they have no AbortError/TypeError shape).
+      const isTransport =
+        err instanceof TypeError ||
+        (err instanceof DOMException &&
+          (err.name === "AbortError" || err.name === "TimeoutError"));
+      if (!isTransport) throw err;
+      console.warn(`Claude API network/timeout error (attempt ${attempt + 1}): ${(err as Error).message}`);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (attempt >= MAX_RETRIES) throw new ClaudeBusyError();
+
+    // Exponential backoff with full-ish jitter; honour retry-after if given.
+    const backoff =
+      BASE_BACKOFF_MS * 2 ** attempt * (0.75 + Math.random() * 0.5);
+    const wait = Math.min(
+      retryAfterMs !== null ? Math.max(retryAfterMs, backoff) : backoff,
+      MAX_RETRY_AFTER_MS
+    );
+    if (deadline - Date.now() - wait < MIN_USEFUL_ATTEMPT_MS) {
+      throw new ClaudeBusyError();
+    }
+    await sleep(wait);
+  }
+}
+
+/**
  * Calls Claude, instructs it to return ONLY JSON matching the described
  * shape, and parses the result. Retries once with a stricter reminder if
  * the first response isn't valid JSON — structured-output failures are
  * rare but not zero, and a silent 500 is worse than one extra call.
+ *
+ * `options` are optional; defaults (claude-sonnet-4-6, 4096 tokens) match
+ * the original behaviour so existing callers are unaffected. See
+ * CLAUDE_TASKS for recommended per-task values.
  */
 export async function callClaudeJSON<T>(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  options: ClaudeCallOptions = {}
 ): Promise<ClaudeJSONResult<T>> {
+  const model = options.model ?? DEFAULT_MODEL;
+  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+  // One deadline shared by both the normal call and the invalid-JSON retry.
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+
+  // NOTE on prompt caching: deliberately not enabled. Every system prompt in
+  // this app is well under the minimum cacheable length (1024 tokens Sonnet,
+  // 2048 Haiku), so cache_control would be silently ignored.
   const call = async (extraStrictness: boolean) => {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        system:
-          systemPrompt +
-          (extraStrictness
-            ? "\n\nCRITICAL: Your entire response must be a single valid JSON object. No markdown fences, no preamble, no trailing commentary."
-            : ""),
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+    const body = JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      system:
+        systemPrompt +
+        (extraStrictness
+          ? "\n\nCRITICAL: Your entire response must be a single valid JSON object. No markdown fences, no preamble, no trailing commentary."
+          : ""),
+      messages: [{ role: "user", content: userPrompt }],
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Claude API error (${response.status}): ${text}`);
-    }
-
-    const json = await response.json();
+    const json = await fetchWithRetry(body, deadline);
     const textBlock = json.content.find((b: any) => b.type === "text");
     const tokensUsed =
       (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0);
