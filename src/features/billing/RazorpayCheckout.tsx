@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/shared/components/Button";
 import { useAuth } from "@/features/auth/AuthContext";
+import { trackAdsConversion } from "@/shared/lib/analytics";
 import { createProUpgradeOrder, verifyProUpgradePayment } from "./api";
 
 declare global {
@@ -47,6 +48,12 @@ export function RazorpayCheckout({ onUpgraded, label = "Upgrade to Pro" }: Razor
         }) => {
           try {
             const result = await verifyProUpgradePayment(response);
+            // Payment id as transaction_id lets Google Ads de-duplicate.
+            trackAdsConversion("purchase", {
+              value: order.amount / 100,
+              currency: order.currency,
+              transactionId: response.razorpay_payment_id,
+            });
             if (result.pending) {
               // Captured-but-not-yet-settled payments are finished by the
               // razorpay-webhook function; refresh a few times so the plan

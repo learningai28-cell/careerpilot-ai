@@ -37,7 +37,7 @@ export function SignupPage() {
           your email to activate your account.
         </p>
         <ConsentBanner />
-    </AuthLayout>
+      </AuthLayout>
     );
   }
 
