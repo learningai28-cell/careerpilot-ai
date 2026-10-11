@@ -8,7 +8,7 @@ Plain-English steps for the site owner. You do not need to write code; you need 
 | --- | --- | --- |
 | Website (what visitors see) | GitHub Pages today, Cloudflare Pages after the cutover below | Automatic when code is merged to `main` |
 | Edge Functions (the AI and payment code) | Supabase | Automatic when code under `supabase/functions/` is merged to `main` (workflow "Deploy Supabase Edge Functions") |
-| Database changes (migrations) | Supabase | **Still manual**: open `supabase/migrations/`, copy the new file into the Supabase SQL Editor, Run. Do not use `supabase db push` (there is no migration history table). |
+| Database changes (migrations) | Supabase | **Still manual**: open `supabase/migrations/`, copy the new file into the Supabase SQL Editor, Run. Do not use `supabase db push` (there is no migration history table). **Always run a new migration BEFORE merging the code that needs it** — functions deploy automatically on merge, and new function code calling a database function that doesn't exist yet would break every AI feature. |
 
 Branches: `main` = production. `staging` = a private test copy (own Supabase project, own preview website). Pushing to `staging` deploys there; nothing touches production.
 
@@ -65,7 +65,7 @@ The Edge Functions' own secrets (Anthropic key, Razorpay key id/secret, webhook 
 
 1. Supabase dashboard > **New project**. Name it e.g. `careerpilot-staging`. Pick the same region as production. Save the database password somewhere safe.
 2. Open the new project > **SQL Editor** > **New query**.
-3. For each file in `supabase/migrations/` **in numeric order** (`0001_...` through the latest file, currently `0008_...`, plus any added later): open the file, copy everything, paste into the SQL Editor, click **Run**, and confirm "Success" before the next one. If one fails, stop and ask a developer; do not skip it.
+3. For each file in `supabase/migrations/` **in numeric order** (`0001_...` through the latest file, currently `0009_...`, plus any added later): open the file, copy everything, paste into the SQL Editor, click **Run**, and confirm "Success" before the next one. If one fails, stop and ask a developer; do not skip it.
 4. Project Settings > API: copy the Project URL, `anon` key and Reference ID into the staging secrets (section 1).
 5. **Edge Functions > Secrets**: add the same secret names production has (Anthropic key, Razorpay **test** key id and secret, and so on).
 6. **Authentication > URL Configuration**: set Site URL to the staging website address (for example `https://staging.careerpilot-ai.pages.dev`) and add it to Redirect URLs.

@@ -3,36 +3,39 @@
 # Cache-Control is set only on specific paths below and never on /* —
 # otherwise the two values would be concatenated into nonsense.
 
+# --- Notes for the /* block below (kept outside the block because
+# Cloudflare only documents full-line comments at column 0) ---
+# Interview practice uses the Web Speech API, which needs the microphone
+# on our own origin; everything else is denied. payment=(self) lets
+# Razorpay checkout (opened from our page) use the Payment Request API.
+# REPORT-ONLY: the browser logs violations in the console but blocks
+# nothing. See docs/DEPLOYMENT.md ("Turning on the Content Security
+# Policy") for how to flip it to enforcing.
+# 
+# Why each origin is here (found in index.html, src/ and the libraries):
+# script  : googletagmanager.com (gtag Ads tag, index.html), checkout.razorpay.com
+# (checkout.js, index.html), us-assets.i.posthog.com (PostHog lazy-loaded
+# modules). 'unsafe-inline' is needed for the inline gtag snippet in
+# index.html; an enforced policy could replace it with a hash later.
+# style   : fonts.googleapis.com (index.html). 'unsafe-inline' because React/Radix
+# set inline style attributes.
+# font    : fonts.gstatic.com.
+# connect : *.supabase.co (REST/auth/functions) + wss for realtime; PostHog
+# us.i.posthog.com / us-assets.i.posthog.com; Razorpay api/lumberjack;
+# Google tag endpoints (google-analytics, analytics.google.com,
+# googleadservices, doubleclick, google.com).
+# frame   : api.razorpay.com + checkout.razorpay.com (checkout modal), Google tag
+# iframes (googletagmanager, td.doubleclick.net).
+# img     : Google/DoubleClick tracking pixels, Razorpay logos, data:/blob: for
+# generated images.
+# worker  : blob: (PostHog and bundlers spin up blob workers).
+
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
-  # Interview practice uses the Web Speech API, which needs the microphone
-  # on our own origin; everything else is denied. payment=(self) lets
-  # Razorpay checkout (opened from our page) use the Payment Request API.
   Permissions-Policy: microphone=(self), camera=(), geolocation=(), payment=(self), usb=(), bluetooth=(), accelerometer=(), gyroscope=(), magnetometer=(), interest-cohort=()
-  # REPORT-ONLY: the browser logs violations in the console but blocks
-  # nothing. See docs/DEPLOYMENT.md ("Turning on the Content Security
-  # Policy") for how to flip it to enforcing.
-  #
-  # Why each origin is here (found in index.html, src/ and the libraries):
-  #  script  : googletagmanager.com (gtag Ads tag, index.html), checkout.razorpay.com
-  #            (checkout.js, index.html), us-assets.i.posthog.com (PostHog lazy-loaded
-  #            modules). 'unsafe-inline' is needed for the inline gtag snippet in
-  #            index.html; an enforced policy could replace it with a hash later.
-  #  style   : fonts.googleapis.com (index.html). 'unsafe-inline' because React/Radix
-  #            set inline style attributes.
-  #  font    : fonts.gstatic.com.
-  #  connect : *.supabase.co (REST/auth/functions) + wss for realtime; PostHog
-  #            us.i.posthog.com / us-assets.i.posthog.com; Razorpay api/lumberjack;
-  #            Google tag endpoints (google-analytics, analytics.google.com,
-  #            googleadservices, doubleclick, google.com).
-  #  frame   : api.razorpay.com + checkout.razorpay.com (checkout modal), Google tag
-  #            iframes (googletagmanager, td.doubleclick.net).
-  #  img     : Google/DoubleClick tracking pixels, Razorpay logos, data:/blob: for
-  #            generated images.
-  #  worker  : blob: (PostHog and bundlers spin up blob workers).
   Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://checkout.razorpay.com https://us-assets.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://www.google.com https://www.google.co.in https://www.googletagmanager.com https://www.google-analytics.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://www.googleadservices.com https://cdn.razorpay.com https://checkout.razorpay.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com https://api.razorpay.com https://lumberjack.razorpay.com https://checkout.razorpay.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://www.google.com https://www.google.co.in; frame-src https://api.razorpay.com https://checkout.razorpay.com https://www.googletagmanager.com https://td.doubleclick.net https://bid.g.doubleclick.net; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://api.razorpay.com; frame-ancestors 'none'
 
 # Hashed filenames from Vite never change content, so cache for a year.

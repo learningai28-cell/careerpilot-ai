@@ -1,4 +1,0 @@
-# SPA fallback for Cloudflare Pages: any path that isn't a real file serves
-# index.html with HTTP 200, so React Router handles the route and deep links
-# / refreshes no longer return 404 (as GitHub Pages' 404.html trick does).
-/* /index.html 200
