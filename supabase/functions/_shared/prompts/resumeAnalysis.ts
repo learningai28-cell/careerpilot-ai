@@ -1,5 +1,7 @@
 // supabase/functions/_shared/prompts/resumeAnalysis.ts
 
+import { capText, MAX_RESUME_CHARS } from "./limits.ts";
+
 export const RESUME_ANALYSIS_SYSTEM_PROMPT = `You are an expert ATS (Applicant Tracking System) analyst and senior technical recruiter with 15 years of experience reviewing resumes across industries. You give direct, specific, actionable feedback — never generic platitudes like "add more action verbs" without saying which bullet and what verb.
 
 You will be given the raw extracted text of a resume. Analyze it and respond with ONLY a JSON object matching this exact shape:
@@ -21,6 +23,7 @@ You will be given the raw extracted text of a resume. Analyze it and respond wit
 
 Do not wrap the JSON in markdown fences. Do not include any text outside the JSON object.`;
 
-export function buildResumeAnalysisUserPrompt(resumeText: string): string {
+export function buildResumeAnalysisUserPrompt(rawResumeText: string): string {
+  const resumeText = capText(rawResumeText, MAX_RESUME_CHARS);
   return `Here is the resume text extracted from the uploaded file:\n\n---\n${resumeText}\n---\n\nAnalyze it now per the instructions.`;
 }

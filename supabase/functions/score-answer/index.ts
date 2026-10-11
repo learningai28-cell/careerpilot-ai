@@ -1,16 +1,23 @@
 // supabase/functions/score-answer/index.ts
 //
 // Deploy: supabase functions deploy score-answer
-// Not gated by the usage cap — that's enforced once at session generation
-// in generate-interview; practicing individual answers within an already
-// generated session shouldn't burn additional quota.
+//
+// Usage cap (module "interview_answer", see consume_usage in migration
+// 0009): this used to be ungated on the idea that the session cap in
+// generate-interview was enough — but users can insert their own sessions
+// and questions through the Data API, so it was effectively unlimited
+// Claude calls. Now: max 5 feedback attempts per question for everyone,
+// plus a monthly cap for free users. Both are generous for real practice.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { callClaudeJSON } from "../_shared/claudeClient.ts";
+import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
+import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import {
   ANSWER_SCORING_SYSTEM_PROMPT,
   buildAnswerScoringUserPrompt,
 } from "../_shared/prompts/answerScoring.ts";
+
+const MODULE = "interview_answer";
 
 interface AnswerScoreJSON {
   score: number;
@@ -70,36 +77,55 @@ Deno.serve(async (req) => {
 
     if (!question) return cors({ error: "Question not found." }, 404);
 
-    const { data: feedback } = await callClaudeJSON<AnswerScoreJSON>(
-      ANSWER_SCORING_SYSTEM_PROMPT,
-      buildAnswerScoringUserPrompt({
-        question: question.question,
-        category: question.category,
-        answerText,
-      })
-    );
+    const usage = await consumeUsage(supabase, MODULE, question.id);
+    if (!usage.allowed) return cors({ error: usage.reason }, 429);
 
-    const { data: savedAnswer, error: insertError } = await supabase
-      .from("interview_answers")
-      .insert({
-        question_id: questionId,
-        user_id: user.id,
-        answer_text: answerText,
-        score: feedback.score,
-        strengths: feedback.strengths,
-        weaknesses: feedback.weaknesses,
-        better_answer: feedback.better_answer,
-        confidence_level: feedback.confidence_level,
-        communication_tips: feedback.communication_tips,
-      })
-      .select()
-      .single();
+    let tokensUsed: number;
+    let savedAnswer: unknown;
+    try {
+      const result = await callClaudeJSON<AnswerScoreJSON>(
+        ANSWER_SCORING_SYSTEM_PROMPT,
+        buildAnswerScoringUserPrompt({
+          question: question.question,
+          category: question.category,
+          answerText,
+        }),
+        CLAUDE_TASKS.answerScoring
+      );
+      const feedback = result.data;
+      tokensUsed = result.tokensUsed;
 
-    if (insertError) return cors({ error: "Failed to save answer feedback." }, 500);
+      const { data, error: insertError } = await supabase
+        .from("interview_answers")
+        .insert({
+          question_id: questionId,
+          user_id: user.id,
+          answer_text: answerText,
+          score: feedback.score,
+          strengths: feedback.strengths,
+          weaknesses: feedback.weaknesses,
+          better_answer: feedback.better_answer,
+          confidence_level: feedback.confidence_level,
+          communication_tips: feedback.communication_tips,
+        })
+        .select()
+        .single();
+
+      if (insertError || !data) throw new Error(`Failed to save answer feedback: ${insertError?.message}`);
+      savedAnswer = data;
+    } catch (err) {
+      await releaseUsage(usage.eventId);
+      throw err;
+    }
+
+    await recordUsageTokens(usage.eventId, tokensUsed);
 
     return cors({ answer: savedAnswer });
   } catch (err) {
     console.error(err);
+    // Claude overloaded/timing out after retries: usage was already refunded,
+    // so tell the user to retry rather than showing a generic error.
+    if (isClaudeBusyError(err)) return cors({ error: err.message }, 503);
     return cors({ error: "Unexpected error scoring answer." }, 500);
   }
 });

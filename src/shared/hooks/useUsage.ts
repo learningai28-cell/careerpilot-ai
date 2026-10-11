@@ -18,9 +18,12 @@ export interface UsageSummary {
   perModule: ModuleUsage[];
 }
 
+// UTC month, matching consume_usage's date_trunc('month', now()) on the
+// server — a local-time month start would show stale counts for the first
+// few hours of each month in IST.
 function startOfMonthISO() {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
 }
 
 export function useUsage() {

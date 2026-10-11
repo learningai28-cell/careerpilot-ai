@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareerPilot AI</title>
+    <title>CareerPilot AI — ATS Resume Checker, JD Match &amp; AI Interview Coach</title>
+    <meta name="description" content="Check your resume against ATS, match it to any job description, practise interviews by voice with AI feedback, and build a polished resume. Free to start. Built for job seekers in India." />
+    <link rel="canonical" href="https://careerpilot.operix.co.in/" />
+    <meta name="theme-color" content="#17B890" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CareerPilot AI" />
+    <meta property="og:title" content="CareerPilot AI — ATS Resume Checker, JD Match &amp; AI Interview Coach" />
+    <meta property="og:description" content="ATS resume score, job-description match, AI mock interviews with voice practice, and a resume builder with DOCX export. Free to start." />
+    <meta property="og:url" content="https://careerpilot.operix.co.in/" />
+    <meta property="og:image" content="https://careerpilot.operix.co.in/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CareerPilot AI — ATS Resume Checker, JD Match &amp; AI Interview Coach" />
+    <meta name="twitter:description" content="ATS resume score, job-description match, AI mock interviews with voice practice, and a resume builder with DOCX export." />
+    <meta name="twitter:image" content="https://careerpilot.operix.co.in/og-image.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,6 +30,24 @@
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      // Consent Mode v2: deny everything by default, then restore a
+      // previously stored choice synchronously, BEFORE gtag('config').
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied'
+      });
+      try {
+        if (localStorage.getItem('careerpilot-consent') === 'granted') {
+          gtag('consent', 'update', {
+            ad_storage: 'granted',
+            ad_user_data: 'granted',
+            ad_personalization: 'granted',
+            analytics_storage: 'granted'
+          });
+        }
+      } catch (e) {}
       gtag('js', new Date());
       gtag('config', 'AW-18378497668');
     </script>

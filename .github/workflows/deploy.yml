@@ -36,6 +36,8 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
+          VITE_GADS_SIGNUP_LABEL: ${{ secrets.VITE_GADS_SIGNUP_LABEL }}
+          VITE_GADS_PURCHASE_LABEL: ${{ secrets.VITE_GADS_PURCHASE_LABEL }}
 
       # GitHub Pages has no server-side rewrite rules, so a direct request
       # to e.g. /dashboard/resume-analyzer 404s before React Router ever

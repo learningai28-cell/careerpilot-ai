@@ -1,5 +1,7 @@
 // supabase/functions/_shared/prompts/jdAnalysis.ts
 
+import { capText, MAX_JD_CHARS, MAX_RESUME_CHARS } from "./limits.ts";
+
 export const JD_ANALYSIS_SYSTEM_PROMPT = `You are an expert technical recruiter and career coach. You will be given a job description's raw text AND a candidate's resume text. Analyze the JD, then evaluate how well the resume matches it.
 
 Respond with ONLY a JSON object matching this exact shape:
@@ -21,6 +23,8 @@ Respond with ONLY a JSON object matching this exact shape:
 
 Be specific and concrete throughout — cite actual terms from the JD and actual (or missing) evidence from the resume. Do not wrap the JSON in markdown fences. Do not include any text outside the JSON object.`;
 
-export function buildJDAnalysisUserPrompt(jdText: string, resumeText: string): string {
+export function buildJDAnalysisUserPrompt(rawJdText: string, rawResumeText: string): string {
+  const jdText = capText(rawJdText, MAX_JD_CHARS);
+  const resumeText = capText(rawResumeText, MAX_RESUME_CHARS);
   return `Job description:\n---\n${jdText}\n---\n\nCandidate resume:\n---\n${resumeText}\n---\n\nAnalyze the JD and evaluate the match now per the instructions.`;
 }

@@ -30,14 +30,23 @@ export interface VerifyPaymentPayload {
   razorpay_signature: string;
 }
 
+export interface VerifyPaymentResponse {
+  success: boolean;
+  /** True when Razorpay hasn't captured the payment yet — the
+   *  razorpay-webhook function will finish the upgrade within moments. */
+  pending?: boolean;
+  plan?: string;
+  proExpiresAt?: string;
+}
+
 export async function verifyProUpgradePayment(
   payload: VerifyPaymentPayload
-): Promise<{ success: boolean; plan: string }> {
+): Promise<VerifyPaymentResponse> {
   const { data, error } = await supabase.functions.invoke("verify-razorpay-payment", {
     headers: await authHeader(),
     body: payload,
   });
   if (error) await unwrapFunctionError(error);
   if (data?.error) throw new Error(data.error);
-  return data as { success: boolean; plan: string };
+  return data as VerifyPaymentResponse;
 }
