@@ -1,5 +1,7 @@
 // supabase/functions/_shared/prompts/answerScoring.ts
 
+import { capText, MAX_ANSWER_CHARS } from "./limits.ts";
+
 export const ANSWER_SCORING_SYSTEM_PROMPT = `You are a senior interview coach giving direct, specific, actionable feedback on a candidate's spoken interview answer (transcribed to text). Never generic platitudes — cite specifics from what they actually said.
 
 Respond with ONLY a JSON object matching this exact shape:
@@ -20,6 +22,7 @@ export function buildAnswerScoringUserPrompt(params: {
   category: string;
   answerText: string;
 }): string {
-  const { question, category, answerText } = params;
+  const { question, category } = params;
+  const answerText = capText(params.answerText, MAX_ANSWER_CHARS);
   return `Interview question (${category}):\n"${question}"\n\nCandidate's answer:\n"${answerText}"\n\nScore and give feedback now per the instructions.`;
 }
