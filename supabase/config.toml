@@ -1,0 +1,16 @@
+# Minimal Supabase CLI config. The only reason this file exists is to tell
+# `supabase functions deploy` (run by .github/workflows/deploy-supabase-functions.yml)
+# which functions must NOT require a Supabase login token. We deliberately
+# do not set project_id here: CI passes --project-ref explicitly so the same
+# file works for both the production and staging projects.
+
+# Razorpay calls this endpoint server-to-server and proves who it is with an
+# HMAC signature (X-Razorpay-Signature), not a Supabase JWT. With JWT
+# verification on, Supabase would reject every webhook with 401 before the
+# function code could check the signature. The function MUST verify the
+# signature itself.
+[functions.razorpay-webhook]
+verify_jwt = false
+
+# Every other function keeps the default (verify_jwt = true) so only
+# logged-in users can call them.
