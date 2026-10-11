@@ -13,6 +13,7 @@ import { JDAnalyzerPage } from "@/features/jd-analyzer/JDAnalyzerPage";
 import { BillingPage } from "@/features/billing/BillingPage";
 import { TermsPage } from "@/features/legal/TermsPage";
 import { PrivacyPage } from "@/features/legal/PrivacyPage";
+import { LandingPage } from "@/features/landing/LandingPage";
 
 // The app can be deployed two ways: under GitHub Pages' project subpath
 // (/careerpilot-ai/...) right now, or at a custom domain's root (/...)
@@ -25,7 +26,7 @@ const basename = window.location.pathname.startsWith("/careerpilot-ai") ? "/care
 
 export const router = createBrowserRouter(
   [
-    { path: "/", element: <Navigate to="/dashboard" replace /> },
+    { path: "/", element: <LandingPage /> },
     { path: "/login", element: <LoginPage /> },
     { path: "/signup", element: <SignupPage /> },
     { path: "/forgot-password", element: <ForgotPasswordPage /> },
