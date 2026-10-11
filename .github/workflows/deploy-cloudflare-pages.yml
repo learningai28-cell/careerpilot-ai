@@ -62,9 +62,9 @@ jobs:
           VITE_POSTHOG_HOST: ${{ github.ref_name == 'staging' && secrets.STAGING_VITE_POSTHOG_HOST || secrets.VITE_POSTHOG_HOST }}
 
       # public/404.html is the GitHub Pages SPA trick. On Cloudflare Pages a
-      # 404.html switches off its built-in handling and unknown routes would
-      # return 404; we rely on public/_redirects (/* /index.html 200)
-      # instead, so remove it from this deploy only.
+      # 404.html switches off its built-in single-page-app handling (which
+      # serves index.html with HTTP 200 for unknown routes), so remove it
+      # from this deploy only.
       - if: steps.check.outputs.run == 'true'
         run: rm -f dist/404.html
 
