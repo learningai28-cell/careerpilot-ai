@@ -46,17 +46,28 @@ export function RazorpayCheckout({ onUpgraded, label = "Upgrade to Pro" }: Razor
           razorpay_signature: string;
         }) => {
           try {
-            await verifyProUpgradePayment(response);
-            toast.success("You're on Pro now — unlimited access across every module.");
-            onUpgraded?.();
+            const result = await verifyProUpgradePayment(response);
+            if (result.pending) {
+              // Captured-but-not-yet-settled payments are finished by the
+              // razorpay-webhook function; refresh a few times so the plan
+              // flips without the user having to reload.
+              toast.success("Payment received — your Pro plan will be active in a few seconds.");
+              [5000, 15000, 30000].forEach((ms) => setTimeout(() => onUpgraded?.(), ms));
+            } else {
+              toast.success("You're on Pro now — unlimited access across every module.");
+              onUpgraded?.();
+            }
           } catch (err: any) {
             // Payment already succeeded on Razorpay's side at this point —
             // this catch means verification/upgrade failed AFTER the charge,
             // so the message must not suggest retrying the payment.
+            // The razorpay-webhook function usually still completes the
+            // upgrade server-side, so keep refreshing the plan too.
             toast.error(
-              err.message ??
-                "Payment succeeded but we couldn't confirm it automatically. Don't pay again — contact support with your payment ID."
+              `${err.message ?? "We couldn't confirm your payment automatically."} Please don't pay again — if Pro isn't active within a few minutes, email hello@operix.co.in with payment ID ${response.razorpay_payment_id}.`,
+              { duration: 15000 }
             );
+            [5000, 30000].forEach((ms) => setTimeout(() => onUpgraded?.(), ms));
           } finally {
             setLoading(false);
           }

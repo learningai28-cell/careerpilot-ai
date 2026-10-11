@@ -4,7 +4,7 @@
 // Requires ANTHROPIC_API_KEY as an Edge Function secret.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { checkUsageLimit, logUsageEvent } from "../_shared/checkUsage.ts";
+import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import { callClaudeJSON } from "../_shared/claudeClient.ts";
 import { JD_ANALYSIS_SYSTEM_PROMPT, buildJDAnalysisUserPrompt } from "../_shared/prompts/jdAnalysis.ts";
 
@@ -46,9 +46,6 @@ Deno.serve(async (req) => {
       return cors({ error: "Paste the full job description text first." }, 400);
     }
 
-    const gate = await checkUsageLimit(supabase, user.id, MODULE);
-    if (!gate.allowed) return cors({ error: gate.reason }, 429);
-
     const { data: resume } = await supabase
       .from("resumes")
       .select("raw_text")
@@ -59,44 +56,61 @@ Deno.serve(async (req) => {
       return cors({ error: "Upload and analyze a resume first — matching needs it." }, 422);
     }
 
-    const { data: jd, error: jdError } = await supabase
-      .from("job_descriptions")
-      .upsert(
-        { user_id: user.id, title, company, raw_text: jdText, updated_at: new Date().toISOString() },
-        { onConflict: "user_id" }
-      )
-      .select()
-      .single();
+    // Usage cap — checked and recorded atomically before the JD is saved
+    // or Claude is called, and refunded below if anything after it fails.
+    const usage = await consumeUsage(supabase, MODULE);
+    if (!usage.allowed) return cors({ error: usage.reason }, 429);
 
-    if (jdError || !jd) return cors({ error: "Failed to save job description." }, 500);
+    let tokensUsed: number;
+    let jd: any;
+    let savedRow: unknown;
+    try {
+      const { data: jdRow, error: jdError } = await supabase
+        .from("job_descriptions")
+        .upsert(
+          { user_id: user.id, title, company, raw_text: jdText, updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        )
+        .select()
+        .single();
 
-    const { data: analysis, tokensUsed } = await callClaudeJSON<any>(
-      JD_ANALYSIS_SYSTEM_PROMPT,
-      buildJDAnalysisUserPrompt(jdText, resume.raw_text)
-    );
+      if (jdError || !jdRow) throw new Error(`Failed to save job description: ${jdError?.message}`);
+      jd = jdRow;
 
-    const { data: savedRow, error: insertError } = await supabase
-      .from("jd_analyses")
-      .insert({
-        jd_id: jd.id,
-        user_id: user.id,
-        required_skills: analysis.required_skills,
-        preferred_skills: analysis.preferred_skills,
-        responsibilities: analysis.responsibilities,
-        experience_required: analysis.experience_required,
-        soft_skills: analysis.soft_skills,
-        technical_skills: analysis.technical_skills,
-        match_score: analysis.match_score,
-        missing_keywords: analysis.missing_keywords,
-        skills_gap: analysis.skills_gap,
-        recommendations: analysis.recommendations,
-      })
-      .select()
-      .single();
+      const result = await callClaudeJSON<any>(
+        JD_ANALYSIS_SYSTEM_PROMPT,
+        buildJDAnalysisUserPrompt(jdText, resume.raw_text)
+      );
+      const analysis = result.data;
+      tokensUsed = result.tokensUsed;
 
-    if (insertError) return cors({ error: "Failed to save analysis." }, 500);
+      const { data, error: insertError } = await supabase
+        .from("jd_analyses")
+        .insert({
+          jd_id: jd.id,
+          user_id: user.id,
+          required_skills: analysis.required_skills,
+          preferred_skills: analysis.preferred_skills,
+          responsibilities: analysis.responsibilities,
+          experience_required: analysis.experience_required,
+          soft_skills: analysis.soft_skills,
+          technical_skills: analysis.technical_skills,
+          match_score: analysis.match_score,
+          missing_keywords: analysis.missing_keywords,
+          skills_gap: analysis.skills_gap,
+          recommendations: analysis.recommendations,
+        })
+        .select()
+        .single();
 
-    await logUsageEvent(supabase, user.id, MODULE, tokensUsed);
+      if (insertError || !data) throw new Error(`Failed to save analysis: ${insertError?.message}`);
+      savedRow = data;
+    } catch (err) {
+      await releaseUsage(usage.eventId);
+      throw err;
+    }
+
+    await recordUsageTokens(usage.eventId, tokensUsed);
 
     return cors({ jd, analysis: savedRow });
   } catch (err) {
