@@ -5,7 +5,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
-import { callClaudeJSON } from "../_shared/claudeClient.ts";
+import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
 import { JD_ANALYSIS_SYSTEM_PROMPT, buildJDAnalysisUserPrompt } from "../_shared/prompts/jdAnalysis.ts";
 
 const MODULE = "jd_analyzer";
@@ -79,7 +79,8 @@ Deno.serve(async (req) => {
 
       const result = await callClaudeJSON<any>(
         JD_ANALYSIS_SYSTEM_PROMPT,
-        buildJDAnalysisUserPrompt(jdText, resume.raw_text)
+        buildJDAnalysisUserPrompt(jdText, resume.raw_text),
+        CLAUDE_TASKS.jdAnalysis
       );
       const analysis = result.data;
       tokensUsed = result.tokensUsed;
@@ -115,6 +116,9 @@ Deno.serve(async (req) => {
     return cors({ jd, analysis: savedRow });
   } catch (err) {
     console.error(err);
+    // Claude overloaded/timing out after retries: usage was already refunded,
+    // so tell the user to retry rather than showing a generic error.
+    if (isClaudeBusyError(err)) return cors({ error: err.message }, 503);
     return cors({ error: "Unexpected error analyzing job description." }, 500);
   }
 });

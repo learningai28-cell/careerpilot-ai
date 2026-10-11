@@ -10,7 +10,7 @@
 // plus a monthly cap for free users. Both are generous for real practice.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { callClaudeJSON } from "../_shared/claudeClient.ts";
+import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
 import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import {
   ANSWER_SCORING_SYSTEM_PROMPT,
@@ -89,7 +89,8 @@ Deno.serve(async (req) => {
           question: question.question,
           category: question.category,
           answerText,
-        })
+        }),
+        CLAUDE_TASKS.answerScoring
       );
       const feedback = result.data;
       tokensUsed = result.tokensUsed;
@@ -122,6 +123,9 @@ Deno.serve(async (req) => {
     return cors({ answer: savedAnswer });
   } catch (err) {
     console.error(err);
+    // Claude overloaded/timing out after retries: usage was already refunded,
+    // so tell the user to retry rather than showing a generic error.
+    if (isClaudeBusyError(err)) return cors({ error: err.message }, 503);
     return cors({ error: "Unexpected error scoring answer." }, 500);
   }
 });
