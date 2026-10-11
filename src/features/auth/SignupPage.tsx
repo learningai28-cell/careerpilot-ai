@@ -5,6 +5,8 @@ import { useAuth } from "./AuthContext";
 import { AuthLayout } from "./AuthLayout";
 import { Input } from "@/shared/components/Input";
 import { Button } from "@/shared/components/Button";
+import { trackAdsConversion } from "@/shared/lib/analytics";
+import { ConsentBanner } from "@/features/consent/ConsentBanner";
 
 export function SignupPage() {
   const { signUpWithPassword, signInWithGoogle } = useAuth();
@@ -22,6 +24,7 @@ export function SignupPage() {
       toast.error(error);
       return;
     }
+    trackAdsConversion("signup");
     setDone(true);
   };
 
@@ -33,7 +36,8 @@ export function SignupPage() {
           We sent a confirmation link to <span className="font-medium">{email}</span>. Verify
           your email to activate your account.
         </p>
-      </AuthLayout>
+        <ConsentBanner />
+    </AuthLayout>
     );
   }
 
@@ -99,6 +103,7 @@ export function SignupPage() {
           Sign in
         </Link>
       </p>
+      <ConsentBanner />
     </AuthLayout>
   );
 }
