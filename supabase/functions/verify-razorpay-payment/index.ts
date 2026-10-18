@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   try {
     const auth = await requireUser(req);
     if (auth instanceof Response) return auth;
-    const { supabase, user } = auth;
+    const { user } = auth;
 
     const body = await req.json().catch(() => ({}));
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body ?? {};
