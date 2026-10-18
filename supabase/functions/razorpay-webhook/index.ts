@@ -31,6 +31,13 @@ const RAZORPAY_WEBHOOK_SECRET = Deno.env.get("RAZORPAY_WEBHOOK_SECRET")!;
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  // Without the secret, HMAC would be keyed with the string "undefined" and
+  // anyone could forge a valid signature. Fail closed (500 = Razorpay retries).
+  if (!RAZORPAY_WEBHOOK_SECRET) {
+    console.error("razorpay-webhook: RAZORPAY_WEBHOOK_SECRET is not set");
+    return json({ error: "Webhook not configured" }, 500);
+  }
+
   // Signature is over the exact raw body, so read it as text first.
   const rawBody = await req.text();
   const signature = req.headers.get("x-razorpay-signature") ?? "";

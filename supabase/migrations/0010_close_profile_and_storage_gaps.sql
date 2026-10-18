@@ -27,3 +27,15 @@ set file_size_limit = 8 * 1024 * 1024,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ]
 where id = 'resumes';
+
+-- 3. Supabase's default privileges had also granted TRUNCATE, REFERENCES and
+--    TRIGGER on every public table to anon and authenticated. TRUNCATE skips
+--    RLS entirely (it would wipe every user's rows). The Data API can't issue
+--    it today, but nothing in the app needs these, so remove them.
+do $$
+declare t record;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('revoke truncate, references, trigger on public.%I from anon, authenticated', t.tablename);
+  end loop;
+end $$;
