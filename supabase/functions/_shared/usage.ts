@@ -7,7 +7,7 @@
 // Now every AI-calling Edge Function does:
 //
 //   const usage = await consumeUsage(supabase, "resume_analyzer");
-//   if (!usage.allowed) return cors({ error: usage.reason }, 429);
+//   if (!usage.allowed) return cors({ error: usage.reason }, 429);  // _shared/http.ts
 //   try {
 //     ... call Claude, save results ...
 //   } catch (err) {
@@ -20,7 +20,8 @@
 // one locked transaction, and holds the actual limit numbers.
 // src/shared/lib/usageLimits.ts is the display-only copy.
 
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import { serviceClient } from "./http.ts";
 
 export type UsageGate =
   | { allowed: true; eventId: string }
@@ -43,13 +44,6 @@ export async function consumeUsage(
 
 // Refund and token logging are service-role only (see migration 0009) —
 // a user who could call release_usage could refund every successful use.
-function serviceClient() {
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-}
-
 export async function releaseUsage(eventId: string) {
   const { error } = await serviceClient().rpc("release_usage", { p_event_id: eventId });
   if (error) console.error("release_usage failed", eventId, error.message);

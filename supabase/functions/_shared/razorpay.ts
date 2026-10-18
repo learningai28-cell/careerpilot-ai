@@ -5,7 +5,7 @@
 // calls the grant_pro SQL function — idempotent, so whichever arrives first
 // upgrades the user and the other is a no-op.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { serviceClient } from "./http.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
@@ -95,11 +95,7 @@ export async function grantProForPayment(params: {
   currency: string;
   source: "checkout" | "webhook";
 }): Promise<string> {
-  const service = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-  const { data, error } = await service.rpc("grant_pro", {
+  const { data, error } = await serviceClient().rpc("grant_pro", {
     p_user_id: params.userId,
     p_order_id: params.orderId,
     p_payment_id: params.paymentId,

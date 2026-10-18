@@ -23,16 +23,10 @@
 // accept (bad signature, foreign order) return 2xx/4xx so they aren't
 // retried forever.
 
+import { json } from "../_shared/http.ts";
 import { checkOrderForUser, grantProForPayment, hmacSha256Hex, safeEqual } from "../_shared/razorpay.ts";
 
 const RAZORPAY_WEBHOOK_SECRET = Deno.env.get("RAZORPAY_WEBHOOK_SECRET")!;
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);

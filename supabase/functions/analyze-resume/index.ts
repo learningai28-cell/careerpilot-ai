@@ -5,7 +5,7 @@
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically by
 // the platform for every Edge Function.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { cors, handleOptions, requireUser } from "../_shared/http.ts";
 import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import { extractResumeText } from "../_shared/extractText.ts";
 import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
@@ -27,36 +27,14 @@ interface ResumeAnalysisJSON {
   improved_summary: string;
 }
 
-function cors(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return cors({}, 200);
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return cors({ error: "Missing authorization header" }, 401);
-
-    // Client bound to the caller's JWT so RLS applies to every query below.
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) return cors({ error: "Invalid session" }, 401);
+    const auth = await requireUser(req);
+    if (auth instanceof Response) return auth;
+    const { supabase, user } = auth;
 
     // 1. Load the user's resume row (single active resume per user).
     const { data: resume, error: resumeError } = await supabase

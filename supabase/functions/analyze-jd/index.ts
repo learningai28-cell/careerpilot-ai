@@ -3,39 +3,21 @@
 // Deploy: supabase functions deploy analyze-jd
 // Requires ANTHROPIC_API_KEY as an Edge Function secret.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { cors, handleOptions, requireUser } from "../_shared/http.ts";
 import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
 import { JD_ANALYSIS_SYSTEM_PROMPT, buildJDAnalysisUserPrompt } from "../_shared/prompts/jdAnalysis.ts";
 
 const MODULE = "jd_analyzer";
 
-function cors(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return cors({}, 200);
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return cors({ error: "Missing authorization header" }, 401);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return cors({ error: "Invalid session" }, 401);
+    const auth = await requireUser(req);
+    if (auth instanceof Response) return auth;
+    const { supabase, user } = auth;
 
     const body = await req.json().catch(() => ({}));
     const jdText: string | undefined = body.jdText?.trim();

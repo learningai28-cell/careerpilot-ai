@@ -18,7 +18,7 @@
 //   - records the payment in the `payments` ledger (via grant_pro), which
 //     rejects a payment id that was already used by another account.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { cors, handleOptions, requireUser } from "../_shared/http.ts";
 import {
   checkOrderForUser,
   fetchOrder,
@@ -29,35 +29,15 @@ import {
 } from "../_shared/razorpay.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-function cors(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return cors({}, 200);
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return cors({ error: "Missing authorization header" }, 401);
-
-    const authedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-      error: authError,
-    } = await authedClient.auth.getUser();
-    if (authError || !user) return cors({ error: "Invalid session" }, 401);
+    const auth = await requireUser(req);
+    if (auth instanceof Response) return auth;
+    const { supabase, user } = auth;
 
     const body = await req.json().catch(() => ({}));
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body ?? {};

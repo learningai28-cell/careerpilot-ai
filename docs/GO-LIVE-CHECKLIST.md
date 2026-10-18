@@ -9,7 +9,9 @@ server code needs the database change.
 1. Supabase Dashboard → SQL Editor → New query.
 2. Paste the whole of `supabase/migrations/0009_payments_and_usage_hardening.sql`, click **Run**, confirm "Success".
    - Safe to run while the current app is live. Safe to run twice.
-3. Check whether the old payment bug was ever abused (one payment upgrading several accounts):
+3. New query: paste the whole of `supabase/migrations/0010_close_profile_and_storage_gaps.sql`, **Run**.
+   - Closes a hole where any user could make themselves Pro for free from the browser console, and enforces the 8 MB PDF/DOCX limit on resume uploads. Safe while live.
+4. Check whether the old payment bug was ever abused (one payment upgrading several accounts):
    ```sql
    select razorpay_payment_id, count(*) as accounts, array_agg(id) as user_ids
    from profiles
@@ -39,6 +41,14 @@ Pick one:
 Then in Supabase Dashboard → Edge Functions, confirm `razorpay-webhook` shows **JWT verification: off** and the others show **on**.
 
 > Do not use the Dashboard copy-paste editor any more — the old single-file copies were removed because they had drifted from the real code.
+
+Then run `supabase/migrations/0011_revoke_client_usage_inserts.sql` in the SQL Editor. Only after the new functions are live: the old ones still need that permission.
+
+Also check for anyone who used the free-Pro hole closed by 0010 (Pro with no payment on record):
+```sql
+select p.id, p.plan, p.pro_expires_at from profiles p
+where p.plan = 'pro' and not exists (select 1 from payments x where x.user_id = p.id);
+```
 
 ## Step 4 — Test before announcing anything · 15 minutes
 

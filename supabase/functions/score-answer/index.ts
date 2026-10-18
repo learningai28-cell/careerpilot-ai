@@ -9,7 +9,7 @@
 // Claude calls. Now: max 5 feedback attempts per question for everyone,
 // plus a monthly cap for free users. Both are generous for real practice.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { cors, handleOptions, requireUser } from "../_shared/http.ts";
 import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
 import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import {
@@ -28,35 +28,14 @@ interface AnswerScoreJSON {
   communication_tips: string[];
 }
 
-function cors(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return cors({}, 200);
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return cors({ error: "Missing authorization header" }, 401);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) return cors({ error: "Invalid session" }, 401);
+    const auth = await requireUser(req);
+    if (auth instanceof Response) return auth;
+    const { supabase, user } = auth;
 
     const body = await req.json().catch(() => ({}));
     const questionId: string | undefined = body.questionId;
