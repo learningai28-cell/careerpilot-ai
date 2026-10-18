@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/shared/lib/invokeFunction";
 import { ChevronDown, ChevronUp, Volume2, Square, Mic, MicOff } from "lucide-react";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Textarea } from "@/shared/components/Textarea";
@@ -84,7 +85,7 @@ export function QuestionCard({
       setPracticing(false);
       toast.success("Feedback ready.");
     } catch (err: any) {
-      toast.error(err.message ?? "Something went wrong.");
+      toastApiError(err);
     }
   };
 

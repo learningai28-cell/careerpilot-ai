@@ -104,13 +104,6 @@ export function trackAdsConversion(
  * at all.
  */
 export function initAnalytics() {
-  // Temporary diagnostic — confirms definitively whether the build
-  // actually has the key baked in, rather than inferring it from an
-  // absence of network requests. Safe to leave in; it's one harmless
-  // console line, not a security concern (the key itself is meant to be
-  // public-safe — it's a write-only ingestion token, not a secret).
-  console.log("[analytics] key present:", !!POSTHOG_KEY, "| host:", POSTHOG_HOST);
-
   if (!POSTHOG_KEY || initialized) return;
 
   // Until the visitor accepts, run cookieless (in-memory persistence) with

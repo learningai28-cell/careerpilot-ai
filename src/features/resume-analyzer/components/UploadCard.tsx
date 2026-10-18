@@ -1,5 +1,6 @@
 import { useRef, useState, DragEvent } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/shared/lib/invokeFunction";
 import { UploadCloud, FileText, RefreshCw } from "lucide-react";
 import { Card } from "@/shared/components/Card";
 import { Button } from "@/shared/components/Button";
@@ -20,7 +21,7 @@ export function UploadCard({ onAnalyzed }: { onAnalyzed?: () => void }) {
       toast.success(`ATS score: ${result.ats_score}`);
       onAnalyzed?.();
     } catch (err: any) {
-      toast.error(err.message ?? "Something went wrong.");
+      toastApiError(err);
     }
   };
 

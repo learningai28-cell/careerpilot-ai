@@ -1,21 +1,10 @@
 import { supabase } from "@/shared/lib/supabaseClient";
-import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
+import { invokeFunction } from "@/shared/lib/invokeFunction";
 import { ResumeProfileData } from "./types";
 
-async function authHeader() {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Not signed in.");
-  return { Authorization: `Bearer ${token}` };
-}
-
 export async function extractResumeData(): Promise<ResumeProfileData> {
-  const { data, error } = await supabase.functions.invoke("extract-resume-data", {
-    headers: await authHeader(),
-  });
-  if (error) await unwrapFunctionError(error);
-  if (data?.error) throw new Error(data.error);
-  return data.profile as ResumeProfileData;
+  const data = await invokeFunction<{ profile: ResumeProfileData }>("extract-resume-data");
+  return data.profile;
 }
 
 export async function fetchProfileData(userId: string): Promise<ResumeProfileData | null> {

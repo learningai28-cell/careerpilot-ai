@@ -1,13 +1,6 @@
 import { supabase } from "@/shared/lib/supabaseClient";
-import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
+import { invokeFunction } from "@/shared/lib/invokeFunction";
 import { InterviewAnswer, InterviewQuestion, InterviewSession, Difficulty } from "./types";
-
-async function authHeader() {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Not signed in.");
-  return { Authorization: `Bearer ${token}` };
-}
 
 export async function generateInterview(params: {
   targetRole?: string;
@@ -15,12 +8,10 @@ export async function generateInterview(params: {
   difficulty: Difficulty;
   useJD?: boolean;
 }): Promise<{ session: InterviewSession; questions: InterviewQuestion[] }> {
-  const { data, error } = await supabase.functions.invoke("generate-interview", {
-    headers: await authHeader(),
-    body: params,
-  });
-  if (error) await unwrapFunctionError(error);
-  if (data?.error) throw new Error(data.error);
+  const data = await invokeFunction<{ session: InterviewSession; questions: InterviewQuestion[] }>(
+    "generate-interview",
+    params
+  );
   return { session: data.session, questions: data.questions };
 }
 
@@ -28,12 +19,10 @@ export async function scoreAnswer(params: {
   questionId: string;
   answerText: string;
 }): Promise<InterviewAnswer> {
-  const { data, error } = await supabase.functions.invoke("score-answer", {
-    headers: await authHeader(),
-    body: { questionId: params.questionId, answerText: params.answerText },
+  const data = await invokeFunction<{ answer: InterviewAnswer }>("score-answer", {
+    questionId: params.questionId,
+    answerText: params.answerText,
   });
-  if (error) await unwrapFunctionError(error);
-  if (data?.error) throw new Error(data.error);
   return data.answer;
 }
 

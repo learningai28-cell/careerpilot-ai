@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/shared/lib/invokeFunction";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Input } from "@/shared/components/Input";
 import { Textarea } from "@/shared/components/Textarea";
@@ -26,7 +27,7 @@ export function JDInputCard({ onAnalyzed }: { onAnalyzed?: () => void }) {
       toast.success(`Match score: ${result.analysis.match_score}`);
       onAnalyzed?.();
     } catch (err: any) {
-      toast.error(err.message ?? "Something went wrong.");
+      toastApiError(err);
     }
   };
 

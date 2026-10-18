@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/shared/lib/invokeFunction";
 import { Briefcase } from "lucide-react";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Input } from "@/shared/components/Input";
@@ -38,7 +39,7 @@ export function SetupForm({ hasResume }: { hasResume: boolean }) {
         groundInJD ? "Interview questions ready, grounded in your JD." : "Interview questions ready."
       );
     } catch (err: any) {
-      toast.error(err.message ?? "Something went wrong.");
+      toastApiError(err);
     }
   };
 

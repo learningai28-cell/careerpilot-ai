@@ -1,7 +1,9 @@
-import { Moon, Sun, Laptop, LogOut, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Moon, Sun, Laptop, LogOut, Menu, Sparkles } from "lucide-react";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useAuth } from "@/features/auth/AuthContext";
 import { Button } from "@/shared/components/Button";
+import { useUsage } from "@/shared/hooks/useUsage";
 import { UsageBadge } from "@/shared/components/UsageBadge";
 
 const themeOptions = [
@@ -17,6 +19,7 @@ interface TopbarProps {
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const { data: usage } = useUsage();
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-line-light bg-white/80 px-4 backdrop-blur dark:border-line-dark dark:bg-ink-900/80 sm:px-6">
@@ -35,6 +38,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <UsageBadge />
+        {usage?.plan === "free" && (
+          <Link to="/dashboard/billing" aria-label="Upgrade to Pro for ₹499">
+            <Button size="sm" tabIndex={-1} className="gap-1 whitespace-nowrap px-2.5 sm:gap-2 sm:px-3">
+              <Sparkles size={13} className="hidden sm:block" />
+              Upgrade ₹499
+            </Button>
+          </Link>
+        )}
         <div className="flex items-center rounded-lg border border-line-light p-0.5 dark:border-line-dark">
           {themeOptions.map(({ value, icon: Icon }) => (
             <button
