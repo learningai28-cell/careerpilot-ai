@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
           skills_gap: analysis.skills_gap,
           section_feedback: analysis.section_feedback,
           improved_summary: analysis.improved_summary,
-          model_version: "claude-sonnet-4-6",
+          model_version: CLAUDE_TASKS.resumeAnalysis.model,
         })
         .select()
         .single();

@@ -53,7 +53,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         amount: Number(PRO_PLAN_AMOUNT),
         currency: "INR",
-        receipt: `pro_upgrade_${user.id}_${Date.now()}`,
+        // Razorpay rejects receipts longer than 40 chars; the user id is
+        // already in notes, so keep this short: "pro_" + 8 + "_" + 13 = 26.
+        receipt: `pro_${user.id.slice(0, 8)}_${Date.now()}`,
         notes: { user_id: user.id, plan: "pro" },
       }),
     });

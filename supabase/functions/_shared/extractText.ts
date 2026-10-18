@@ -6,6 +6,7 @@
 
 import pdfParse from "npm:pdf-parse@1.1.1";
 import mammoth from "npm:mammoth@1.7.2";
+import { Buffer } from "node:buffer";
 
 export async function extractResumeText(
   fileBytes: ArrayBuffer,
@@ -17,8 +18,9 @@ export async function extractResumeText(
   }
 
   // docx
+  // mammoth's types want a Node Buffer, not a plain Uint8Array.
   const result = await mammoth.extractRawText({
-    buffer: new Uint8Array(fileBytes),
+    buffer: Buffer.from(fileBytes),
   });
   return result.value.trim();
 }

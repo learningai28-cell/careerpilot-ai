@@ -12,7 +12,7 @@
 // Edge Function wall-clock limit (~150s).
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_MODEL = "claude-sonnet-5-5";
 const DEFAULT_MAX_TOKENS = 4096;
 
 // --- Timeout / retry tuning -------------------------------------------------
@@ -24,35 +24,48 @@ const MAX_RETRY_AFTER_MS = 20_000; // never sleep longer than this for retry-aft
 const MIN_USEFUL_ATTEMPT_MS = 8_000; // don't start an attempt with less time left
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504, 529]);
 
+const SONNET = "claude-sonnet-5-5"; // $2 / $10 per MTok (Sonnet 4.6 was $3 / $15)
+const HAIKU = "claude-haiku-5-5"; // $0.10 / $0.50 per MTok
+
 /**
  * Recommended model + output-token budget per task. Callers pass these as
  * `options`. Rationale:
  *  - Sonnet where judgement quality is the product (analysis, generation).
  *  - Haiku for simpler structured tasks (scoring a short answer, reshaping
- *    resume text into fields) — several times cheaper and faster.
+ *    resume text into fields) — far cheaper and faster.
+ *  - Thinking is turned off for every task: these are single-shot JSON
+ *    tasks, and on the 5.5 models thinking is on by default, is billed as
+ *    output, and counts against max_tokens (which truncated the JSON).
+ *    Sonnet 5.5 turns it off with "between_tools"; Haiku 5.5 with "disabled".
  *  - maxTokens is sized to the prompt's real JSON output plus ~50-100%
- *    headroom, because truncated JSON fails the call outright (and triggers
- *    a paid retry), which costs far more than unused headroom (you only pay
- *    for tokens actually generated).
+ *    headroom, because truncated JSON fails the call outright, which costs
+ *    far more than unused headroom (you only pay for tokens generated).
  */
 export const CLAUDE_TASKS = {
   // ~1.5-2k tokens of JSON (6 lists, up to 10 skills, per-section feedback).
-  resumeAnalysis: { model: "claude-sonnet-4-6", maxTokens: 3500 },
+  resumeAnalysis: { model: SONNET, maxTokens: 3500 },
   // ~1.5-2.5k tokens (JD breakdown lists + match score + gap + recommendations).
-  jdAnalysis: { model: "claude-sonnet-4-6", maxTokens: 4096 },
+  jdAnalysis: { model: SONNET, maxTokens: 4096 },
   // 8 questions, each with a 3-5 sentence sample answer + follow-ups
   // ≈ 2.5-3.5k tokens; this is the largest output, so give it the most room.
-  interviewGeneration: { model: "claude-sonnet-4-6", maxTokens: 6000 },
+  interviewGeneration: { model: SONNET, maxTokens: 6000 },
   // Short feedback object (~500-700 tokens). Simple rubric task -> Haiku.
-  answerScoring: { model: "claude-haiku-5-5", maxTokens: 1500 },
+  answerScoring: { model: HAIKU, maxTokens: 1500 },
   // Mechanical restructuring; output is roughly as long as the resume itself
   // (up to ~25k chars ≈ 6k tokens input cap), so allow generous room. Haiku.
-  resumeDataExtraction: { model: "claude-haiku-5-5", maxTokens: 8000 },
+  resumeDataExtraction: { model: HAIKU, maxTokens: 8000 },
 } as const;
 
 export interface ClaudeCallOptions {
   model?: string;
   maxTokens?: number;
+}
+
+/** Model-specific request fields that switch thinking off. */
+function thinkingOff(model: string) {
+  if (model.startsWith("claude-sonnet-5-5")) return { type: "between_tools" };
+  if (model.startsWith("claude-haiku-5-5")) return { type: "disabled" };
+  return undefined; // older models: thinking is off unless requested
 }
 
 interface ClaudeJSONResult<T> {
@@ -97,7 +110,8 @@ function parseRetryAfterMs(value: string | null): number | null {
  */
 async function fetchWithRetry(
   body: string,
-  deadline: number
+  deadline: number,
+  extraHeaders: Record<string, string> = {}
 ): Promise<any> {
   for (let attempt = 0; ; attempt++) {
     const remaining = deadline - Date.now();
@@ -117,6 +131,7 @@ async function fetchWithRetry(
           "content-type": "application/json",
           "x-api-key": ANTHROPIC_API_KEY,
           "anthropic-version": "2023-06-01",
+          ...extraHeaders,
         },
         body,
         signal: controller.signal,
@@ -171,8 +186,7 @@ async function fetchWithRetry(
  * the first response isn't valid JSON — structured-output failures are
  * rare but not zero, and a silent 500 is worse than one extra call.
  *
- * `options` are optional; defaults (claude-sonnet-4-6, 4096 tokens) match
- * the original behaviour so existing callers are unaffected. See
+ * `options` are optional (defaults: Sonnet 5.5, 4096 tokens). See
  * CLAUDE_TASKS for recommended per-task values.
  */
 export async function callClaudeJSON<T>(
@@ -188,10 +202,21 @@ export async function callClaudeJSON<T>(
   // NOTE on prompt caching: deliberately not enabled. Every system prompt in
   // this app is well under the minimum cacheable length (1024 tokens Sonnet,
   // 2048 Haiku), so cache_control would be silently ignored.
+  // Sonnet 5.5 can decline a request (stop_reason "refusal"). "default"
+  // fallbacks let the API re-run it on a suitable model inside the same call
+  // instead of failing the user's (already metered) request.
+  const useFallbacks = model.startsWith("claude-sonnet-5-5");
+  const headers: Record<string, string> = useFallbacks
+    ? { "anthropic-beta": "server-side-fallback-2026-07-01" }
+    : {};
+
   const call = async (extraStrictness: boolean) => {
+    const thinking = thinkingOff(model);
     const body = JSON.stringify({
       model,
       max_tokens: maxTokens,
+      ...(thinking ? { thinking } : {}),
+      ...(useFallbacks ? { fallbacks: "default" } : {}),
       system:
         systemPrompt +
         (extraStrictness
@@ -200,12 +225,28 @@ export async function callClaudeJSON<T>(
       messages: [{ role: "user", content: userPrompt }],
     });
 
-    const json = await fetchWithRetry(body, deadline);
-    const textBlock = json.content.find((b: any) => b.type === "text");
+    const json = await fetchWithRetry(body, deadline, headers);
     const tokensUsed =
       (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0);
 
-    const raw = (textBlock?.text ?? "").trim();
+    if (json.stop_reason === "refusal") {
+      throw new Error(`Claude declined the request (${json.stop_details?.category ?? "unknown"}).`);
+    }
+    if (json.stop_reason === "max_tokens") {
+      // A stricter retry would hit the same cap and just cost more.
+      throw new Error(`Claude output hit max_tokens (${maxTokens}) for ${model}.`);
+    }
+
+    // After a fallback, earlier blocks belong to the model that declined;
+    // only text after the last fallback block is the answer.
+    const blocks: any[] = json.content ?? [];
+    const lastFallback = blocks.map((b) => b.type).lastIndexOf("fallback");
+    const raw = blocks
+      .slice(lastFallback + 1)
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "");
     return { cleaned, tokensUsed };
   };
