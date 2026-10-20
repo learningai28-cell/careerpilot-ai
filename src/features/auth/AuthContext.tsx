@@ -26,14 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setLoading(false);
       if (data.session?.user) {
-        identifyUser(data.session.user.id, data.session.user.email ?? undefined);
+        identifyUser(data.session.user.id);
       }
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       if (newSession?.user) {
-        identifyUser(newSession.user.id, newSession.user.email ?? undefined);
+        identifyUser(newSession.user.id);
       } else {
         resetAnalyticsIdentity();
       }

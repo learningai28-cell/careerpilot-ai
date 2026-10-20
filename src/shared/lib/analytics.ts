@@ -121,9 +121,11 @@ export function initAnalytics() {
   initialized = true;
 }
 
-export function identifyUser(userId: string, email?: string) {
-  if (!initialized) return;
-  posthog.identify(userId, email ? { email } : undefined);
+// Only the opaque user id goes to PostHog (a US service) — never the email,
+// and only after the visitor accepted analytics cookies.
+export function identifyUser(userId: string) {
+  if (!initialized || getConsent() !== "granted") return;
+  posthog.identify(userId);
 }
 
 export function resetAnalyticsIdentity() {
