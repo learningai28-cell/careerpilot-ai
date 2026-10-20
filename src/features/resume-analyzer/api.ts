@@ -1,5 +1,5 @@
 import { supabase } from "@/shared/lib/supabaseClient";
-import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
+import { invokeFunction } from "@/shared/lib/invokeFunction";
 import { Resume, ResumeAnalysis } from "./types";
 
 const ALLOWED_TYPES: Record<string, "pdf" | "docx"> = {
@@ -61,20 +61,8 @@ export async function uploadResume(file: File, userId: string): Promise<Resume> 
 }
 
 export async function analyzeResume(): Promise<ResumeAnalysis> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
-  if (!token) throw new Error("Not signed in.");
-
-  const { data, error } = await supabase.functions.invoke("analyze-resume", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (error) {
-    await unwrapFunctionError(error);
-  }
-  if (data?.error) throw new Error(data.error);
-
-  return data.analysis as ResumeAnalysis;
+  const data = await invokeFunction<{ analysis: ResumeAnalysis }>("analyze-resume");
+  return data.analysis;
 }
 
 export async function fetchLatestResume(userId: string): Promise<Resume | null> {

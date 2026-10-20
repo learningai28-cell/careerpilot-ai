@@ -15,6 +15,22 @@ export default defineConfig({
   // there's no longer a reason for relative paths anyway.
   base: "/",
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy, rarely-changing vendors so they cache independently
+        // of app code and load in parallel with the entry chunk.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("posthog-js")) return "vendor-posthog";
+          if (id.includes("@supabase")) return "vendor-supabase";
+          if (id.includes("/react-router") || id.includes("/@remix-run/")) return "vendor-router";
+          if (id.includes("/react-dom/") || id.includes("/react/") || id.includes("/scheduler/")) return "vendor-react";
+          return undefined;
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

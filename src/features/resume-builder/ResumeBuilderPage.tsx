@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/shared/lib/invokeFunction";
 import { FileEdit } from "lucide-react";
 import { Skeleton } from "@/shared/components/Skeleton";
 import { Button } from "@/shared/components/Button";
@@ -40,7 +41,7 @@ export function ResumeBuilderPage() {
       setStep("edit");
       toast.success("Resume read successfully — review and edit below.");
     } catch (err: any) {
-      toast.error(err.message ?? "Something went wrong.");
+      toastApiError(err);
     }
   };
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { ConsentBanner } from "@/features/consent/ConsentBanner";
 
 export function DashboardShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -23,6 +24,9 @@ export function DashboardShell() {
           <Outlet />
         </main>
       </div>
+      {/* Existing users land here directly and never see the landing page,
+          so the consent banner has to be offered inside the app too. */}
+      <ConsentBanner />
     </div>
   );
 }

@@ -5,10 +5,10 @@
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically by
 // the platform for every Edge Function.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { checkUsageLimit, logUsageEvent } from "../_shared/checkUsage.ts";
+import { cors, handleOptions, requireUser } from "../_shared/http.ts";
+import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
 import { extractResumeText } from "../_shared/extractText.ts";
-import { callClaudeJSON } from "../_shared/claudeClient.ts";
+import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
 import {
   RESUME_ANALYSIS_SYSTEM_PROMPT,
   buildResumeAnalysisUserPrompt,
@@ -27,42 +27,16 @@ interface ResumeAnalysisJSON {
   improved_summary: string;
 }
 
-function cors(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return cors({}, 200);
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return cors({ error: "Missing authorization header" }, 401);
+    const auth = await requireUser(req);
+    if (auth instanceof Response) return auth;
+    const { supabase, user } = auth;
 
-    // Client bound to the caller's JWT so RLS applies to every query below.
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) return cors({ error: "Invalid session" }, 401);
-
-    // 1. Usage cap check — before any parsing or Claude spend.
-    const gate = await checkUsageLimit(supabase, user.id, MODULE);
-    if (!gate.allowed) return cors({ error: gate.reason }, 429);
-
-    // 2. Load the user's resume row (single active resume per user).
+    // 1. Load the user's resume row (single active resume per user).
     const { data: resume, error: resumeError } = await supabase
       .from("resumes")
       .select("*")
@@ -73,7 +47,7 @@ Deno.serve(async (req) => {
       return cors({ error: "No resume found. Upload one first." }, 404);
     }
 
-    // 3. Extract text if not already cached from a previous run.
+    // 2. Extract text if not already cached from a previous run.
     let resumeText = resume.raw_text as string | null;
     if (!resumeText) {
       const { data: fileBlob, error: downloadError } = await supabase.storage
@@ -95,39 +69,59 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Call Claude for structured analysis.
-    const { data: analysis, tokensUsed } = await callClaudeJSON<ResumeAnalysisJSON>(
-      RESUME_ANALYSIS_SYSTEM_PROMPT,
-      buildResumeAnalysisUserPrompt(resumeText)
-    );
+    // 3. Usage cap — checked and recorded atomically right before the
+    // Claude spend, and refunded below if anything after it fails.
+    const usage = await consumeUsage(supabase, MODULE);
+    if (!usage.allowed) return cors({ error: usage.reason }, 429);
 
-    // 5. Persist.
-    const { data: savedRow, error: insertError } = await supabase
-      .from("resume_analyses")
-      .insert({
-        resume_id: resume.id,
-        user_id: user.id,
-        ats_score: analysis.ats_score,
-        strengths: analysis.strengths,
-        weaknesses: analysis.weaknesses,
-        missing_keywords: analysis.missing_keywords,
-        formatting_issues: analysis.formatting_issues,
-        skills_gap: analysis.skills_gap,
-        section_feedback: analysis.section_feedback,
-        improved_summary: analysis.improved_summary,
-        model_version: "claude-sonnet-4-6",
-      })
-      .select()
-      .single();
+    let tokensUsed: number;
+    let savedRow: unknown;
+    try {
+      // 4. Call Claude for structured analysis.
+      const result = await callClaudeJSON<ResumeAnalysisJSON>(
+        RESUME_ANALYSIS_SYSTEM_PROMPT,
+        buildResumeAnalysisUserPrompt(resumeText),
+        CLAUDE_TASKS.resumeAnalysis
+      );
+      const analysis = result.data;
+      tokensUsed = result.tokensUsed;
 
-    if (insertError) return cors({ error: "Failed to save analysis." }, 500);
+      // 5. Persist.
+      const { data, error: insertError } = await supabase
+        .from("resume_analyses")
+        .insert({
+          resume_id: resume.id,
+          user_id: user.id,
+          ats_score: analysis.ats_score,
+          strengths: analysis.strengths,
+          weaknesses: analysis.weaknesses,
+          missing_keywords: analysis.missing_keywords,
+          formatting_issues: analysis.formatting_issues,
+          skills_gap: analysis.skills_gap,
+          section_feedback: analysis.section_feedback,
+          improved_summary: analysis.improved_summary,
+          model_version: CLAUDE_TASKS.resumeAnalysis.model,
+        })
+        .select()
+        .single();
 
-    // 6. Log usage.
-    await logUsageEvent(supabase, user.id, MODULE, tokensUsed);
+      if (insertError || !data) throw new Error(`Failed to save analysis: ${insertError?.message}`);
+      savedRow = data;
+    } catch (err) {
+      // Don't charge the user's quota for a failed analysis.
+      await releaseUsage(usage.eventId);
+      throw err;
+    }
+
+    // 6. Record token spend for cost reporting.
+    await recordUsageTokens(usage.eventId, tokensUsed);
 
     return cors({ analysis: savedRow });
   } catch (err) {
     console.error(err);
+    // Claude overloaded/timing out after retries: usage was already refunded,
+    // so tell the user to retry rather than showing a generic error.
+    if (isClaudeBusyError(err)) return cors({ error: err.message }, 503);
     return cors({ error: "Unexpected error analyzing resume." }, 500);
   }
 });

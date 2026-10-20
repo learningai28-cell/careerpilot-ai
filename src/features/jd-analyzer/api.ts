@@ -1,25 +1,13 @@
 import { supabase } from "@/shared/lib/supabaseClient";
-import { unwrapFunctionError } from "@/shared/lib/edgeFunctionError";
+import { invokeFunction } from "@/shared/lib/invokeFunction";
 import { JDAnalysis, JobDescription } from "./types";
-
-async function authHeader() {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Not signed in.");
-  return { Authorization: `Bearer ${token}` };
-}
 
 export async function analyzeJD(params: {
   jdText: string;
   title?: string;
   company?: string;
 }): Promise<{ jd: JobDescription; analysis: JDAnalysis }> {
-  const { data, error } = await supabase.functions.invoke("analyze-jd", {
-    headers: await authHeader(),
-    body: params,
-  });
-  if (error) await unwrapFunctionError(error);
-  if (data?.error) throw new Error(data.error);
+  const data = await invokeFunction<{ jd: JobDescription; analysis: JDAnalysis }>("analyze-jd", params);
   return { jd: data.jd, analysis: data.analysis };
 }
 

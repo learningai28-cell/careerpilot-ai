@@ -1,0 +1,80 @@
+name: Deploy to Cloudflare Pages
+
+# Prepared ahead of the hosting move. The GitHub Pages workflow (deploy.yml)
+# stays the live deploy until the owner switches DNS, so running both in
+# parallel is intentional: this one publishes to *.pages.dev for testing.
+#   push to main    -> Cloudflare production deployment
+#   push to staging -> Cloudflare preview deployment (staging.<project>.pages.dev)
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Staging builds must point at the staging Supabase project, otherwise
+      # testing on staging would write to production data.
+      BUILD_SUPABASE_URL: ${{ github.ref_name == 'staging' && secrets.STAGING_VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Skipping: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$BUILD_SUPABASE_URL" ]; then
+            echo "::notice::Skipping: Supabase URL secret for this branch is not set (VITE_SUPABASE_URL, or STAGING_VITE_SUPABASE_URL on staging)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.check.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - if: steps.check.outputs.run == 'true'
+        run: npm ci
+
+      # Same build-time env as deploy.yml (VITE_ vars are baked in at build).
+      # On the staging branch the STAGING_ secrets are used instead.
+      - if: steps.check.outputs.run == 'true'
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ github.ref_name == 'staging' && secrets.STAGING_VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ github.ref_name == 'staging' && secrets.STAGING_VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_POSTHOG_KEY: ${{ github.ref_name == 'staging' && secrets.STAGING_VITE_POSTHOG_KEY || secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ github.ref_name == 'staging' && secrets.STAGING_VITE_POSTHOG_HOST || secrets.VITE_POSTHOG_HOST }}
+          VITE_GADS_SIGNUP_LABEL: ${{ github.ref_name != 'staging' && secrets.VITE_GADS_SIGNUP_LABEL || '' }}
+          VITE_GADS_PURCHASE_LABEL: ${{ github.ref_name != 'staging' && secrets.VITE_GADS_PURCHASE_LABEL || '' }}
+
+      # public/404.html is the GitHub Pages SPA trick. On Cloudflare Pages a
+      # 404.html switches off its built-in single-page-app handling (which
+      # serves index.html with HTTP 200 for unknown routes), so remove it
+      # from this deploy only.
+      - if: steps.check.outputs.run == 'true'
+        run: rm -f dist/404.html
+
+      # --branch decides the environment: the Pages project's production
+      # branch (main) -> production URL; any other branch -> preview URL.
+      - if: steps.check.outputs.run == 'true'
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=careerpilot-ai --branch=${{ github.ref_name }}

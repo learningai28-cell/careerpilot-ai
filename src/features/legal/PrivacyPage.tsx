@@ -80,9 +80,17 @@ export function PrivacyPage() {
             the app. We do not use it for advertising, and we do not share this data with
             advertisers.
           </li>
+          <li>
+            <strong>Google Ads</strong> — we use the Google tag to measure whether our ads lead to
+            sign-ups and upgrades. It only sets advertising cookies if you click "Accept" on the
+            cookie banner; if you reject, Google receives only cookieless, aggregated signals.
+          </li>
         </ul>
         <p>
-          We do not use third-party advertising trackers or sell data to advertisers.
+          PostHog analytics cookies and Google Ads cookies are only used after you accept them
+          in the cookie banner, and you can change your choice by clearing this site's data in
+          your browser. We do not sell your data, and your resume, job descriptions and
+          interview answers are never shared with advertisers.
         </p>
       </LegalSection>
 

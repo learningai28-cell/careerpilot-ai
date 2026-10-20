@@ -2,6 +2,11 @@ import { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/features/auth/AuthContext";
+import { setBillingNavigator } from "@/shared/lib/invokeFunction";
+import { router } from "./router";
+
+// Lets the free-plan-limit toast navigate without a hook (it fires outside React).
+setBillingNavigator(() => router.navigate("/dashboard/billing"));
 
 const queryClient = new QueryClient({
   defaultOptions: {

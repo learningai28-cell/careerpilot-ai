@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { SignupPage } from "@/features/auth/SignupPage";
@@ -5,66 +6,68 @@ import { ForgotPasswordPage } from "@/features/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { DashboardShell } from "@/shared/layout/DashboardShell";
-import { DashboardHome } from "@/features/dashboard/DashboardHome";
-import { ResumeAnalyzerPage } from "@/features/resume-analyzer/ResumeAnalyzerPage";
-import { InterviewCoachPage } from "@/features/interview-coach/InterviewCoachPage";
-import { ResumeBuilderPage } from "@/features/resume-builder/ResumeBuilderPage";
-import { JDAnalyzerPage } from "@/features/jd-analyzer/JDAnalyzerPage";
-import { BillingPage } from "@/features/billing/BillingPage";
-import { TermsPage } from "@/features/legal/TermsPage";
-import { PrivacyPage } from "@/features/legal/PrivacyPage";
+import { LandingPage } from "@/features/landing/LandingPage";
+import { lazyWithReload } from "@/shared/lib/lazyWithReload";
+import { ContentSpinner, PageSpinner } from "@/shared/components/PageSpinner";
 
-// The app can be deployed two ways: under GitHub Pages' project subpath
-// (/careerpilot-ai/...) right now, or at a custom domain's root (/...)
-// later once that migration happens. React Router needs to know which one
-// is active so client-side navigation (Link, Navigate, useNavigate) keeps
-// the correct prefix instead of silently dropping it — this is computed
-// at runtime from the actual URL rather than hardcoded, so it keeps
-// working after the domain switch without another code change.
-const basename = window.location.pathname.startsWith("/careerpilot-ai") ? "/careerpilot-ai" : "/";
-
-export const router = createBrowserRouter(
-  [
-    { path: "/", element: <Navigate to="/dashboard" replace /> },
-    { path: "/login", element: <LoginPage /> },
-    { path: "/signup", element: <SignupPage /> },
-    { path: "/forgot-password", element: <ForgotPasswordPage /> },
-    { path: "/reset-password", element: <ResetPasswordPage /> },
-    { path: "/terms", element: <TermsPage /> },
-    { path: "/privacy", element: <PrivacyPage /> },
-    {
-      element: <ProtectedRoute />,
-      children: [
-        {
-          path: "/dashboard",
-          element: <DashboardShell />,
-          children: [
-            { index: true, element: <DashboardHome /> },
-            {
-              path: "resume-analyzer",
-              element: <ResumeAnalyzerPage />,
-            },
-            {
-              path: "resume-builder",
-              element: <ResumeBuilderPage />,
-            },
-            {
-              path: "jd-analyzer",
-              element: <JDAnalyzerPage />,
-            },
-            {
-              path: "interview-coach",
-              element: <InterviewCoachPage />,
-            },
-            {
-              path: "billing",
-              element: <BillingPage />,
-            },
-          ],
-        },
-      ],
-    },
-    { path: "*", element: <Navigate to="/dashboard" replace /> },
-  ],
-  { basename }
+// Feature pages are code-split. lazyWithReload reloads once if a chunk from
+// a previous deploy no longer exists (see src/shared/lib/lazyWithReload.ts).
+const DashboardHome = lazyWithReload(() =>
+  import("@/features/dashboard/DashboardHome").then((m) => ({ default: m.DashboardHome }))
 );
+const ResumeAnalyzerPage = lazyWithReload(() =>
+  import("@/features/resume-analyzer/ResumeAnalyzerPage").then((m) => ({ default: m.ResumeAnalyzerPage }))
+);
+const InterviewCoachPage = lazyWithReload(() =>
+  import("@/features/interview-coach/InterviewCoachPage").then((m) => ({ default: m.InterviewCoachPage }))
+);
+const ResumeBuilderPage = lazyWithReload(() =>
+  import("@/features/resume-builder/ResumeBuilderPage").then((m) => ({ default: m.ResumeBuilderPage }))
+);
+const JDAnalyzerPage = lazyWithReload(() =>
+  import("@/features/jd-analyzer/JDAnalyzerPage").then((m) => ({ default: m.JDAnalyzerPage }))
+);
+const BillingPage = lazyWithReload(() =>
+  import("@/features/billing/BillingPage").then((m) => ({ default: m.BillingPage }))
+);
+const TermsPage = lazyWithReload(() =>
+  import("@/features/legal/TermsPage").then((m) => ({ default: m.TermsPage }))
+);
+const PrivacyPage = lazyWithReload(() =>
+  import("@/features/legal/PrivacyPage").then((m) => ({ default: m.PrivacyPage }))
+);
+
+const page = (el: JSX.Element) => <Suspense fallback={<PageSpinner />}>{el}</Suspense>;
+// Inside the dashboard shell, keep the sidebar/topbar and only spin the content area.
+const content = (el: JSX.Element) => <Suspense fallback={<ContentSpinner />}>{el}</Suspense>;
+
+// The app is served from the domain root, so no router basename is needed.
+export const router = createBrowserRouter([
+  // Public landing page (logged-in users are sent on to /dashboard). Eager,
+  // like the auth pages, because it is the first paint for new visitors.
+  { path: "/", element: <LandingPage /> },
+  { path: "/login", element: <LoginPage /> },
+  { path: "/signup", element: <SignupPage /> },
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/terms", element: page(<TermsPage />) },
+  { path: "/privacy", element: page(<PrivacyPage />) },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: "/dashboard",
+        element: <DashboardShell />,
+        children: [
+          { index: true, element: content(<DashboardHome />) },
+          { path: "resume-analyzer", element: content(<ResumeAnalyzerPage />) },
+          { path: "resume-builder", element: content(<ResumeBuilderPage />) },
+          { path: "jd-analyzer", element: content(<JDAnalyzerPage />) },
+          { path: "interview-coach", element: content(<InterviewCoachPage />) },
+          { path: "billing", element: content(<BillingPage />) },
+        ],
+      },
+    ],
+  },
+  { path: "*", element: <Navigate to="/dashboard" replace /> },
+]);

@@ -53,16 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    // Same problem the router basename fix addressed: this app can be
-    // deployed under GitHub Pages' subpath (/careerpilot-ai/...) or at a
-    // custom domain's root (/...) later. Hardcoding "/dashboard" here
-    // silently dropped the subpath, sending Google's OAuth callback to a
-    // URL that doesn't exist. Detected at runtime so it keeps working
-    // after the domain switch without touching this again.
-    const base = window.location.pathname.startsWith("/careerpilot-ai") ? "/careerpilot-ai" : "";
+    // The app is served from the domain root, so the callback is origin + path.
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin + base + "/dashboard" },
+      options: { redirectTo: window.location.origin + "/dashboard" },
     });
   };
 
@@ -71,14 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendPasswordResetEmail = async (email: string) => {
-    // Same subpath problem the router basename fix and Google OAuth redirect
-    // both had to account for: this app can be deployed under GitHub
-    // Pages' subpath (/careerpilot-ai/...) or a custom domain's root (/...).
-    // Detected at runtime so the emailed link keeps working after a domain
-    // switch without touching this again.
-    const base = window.location.pathname.startsWith("/careerpilot-ai") ? "/careerpilot-ai" : "";
+    // The app is served from the domain root, so the emailed link is origin + path.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + base + "/reset-password",
+      redirectTo: window.location.origin + "/reset-password",
     });
     return { error: error?.message ?? null };
   };

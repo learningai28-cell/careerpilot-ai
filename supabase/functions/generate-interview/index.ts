@@ -3,9 +3,9 @@
 // Deploy: supabase functions deploy generate-interview
 // Requires ANTHROPIC_API_KEY as an Edge Function secret.
 
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { checkUsageLimit, logUsageEvent } from "../_shared/checkUsage.ts";
-import { callClaudeJSON } from "../_shared/claudeClient.ts";
+import { cors, handleOptions, requireUser } from "../_shared/http.ts";
+import { consumeUsage, recordUsageTokens, releaseUsage } from "../_shared/usage.ts";
+import { CLAUDE_TASKS, callClaudeJSON, isClaudeBusyError } from "../_shared/claudeClient.ts";
 import {
   INTERVIEW_GENERATION_SYSTEM_PROMPT,
   buildInterviewGenerationUserPrompt,
@@ -21,35 +21,14 @@ interface GeneratedQuestion {
   difficulty: "easy" | "medium" | "hard";
 }
 
-function cors(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return cors({}, 200);
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return cors({ error: "Missing authorization header" }, 401);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) return cors({ error: "Invalid session" }, 401);
+    const auth = await requireUser(req);
+    if (auth instanceof Response) return auth;
+    const { supabase, user } = auth;
 
     const body = await req.json().catch(() => ({}));
     const useJD: boolean = body.useJD === true;
@@ -82,11 +61,7 @@ Deno.serve(async (req) => {
       return cors({ error: "difficulty must be easy, medium, or hard." }, 400);
     }
 
-    // 1. Usage cap — one generation call = one "session" against the free cap.
-    const gate = await checkUsageLimit(supabase, user.id, MODULE);
-    if (!gate.allowed) return cors({ error: gate.reason }, 429);
-
-    // 2. Pull cached resume text (from Module 1). Required — questions are
+    // 1. Pull cached resume text (from Module 1). Required — questions are
     // grounded in it, not generic.
     const { data: resume } = await supabase
       .from("resumes")
@@ -101,60 +76,84 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Generate questions.
-    const { data: generated, tokensUsed } = await callClaudeJSON<{
-      questions: GeneratedQuestion[];
-    }>(
-      INTERVIEW_GENERATION_SYSTEM_PROMPT,
-      buildInterviewGenerationUserPrompt({
-        resumeText: resume.raw_text,
-        targetRole,
-        experienceYears,
-        difficulty,
-        jdText,
-      })
-    );
+    // 2. Usage cap — one generation call = one "session" against the free
+    // cap. Checked and recorded atomically right before the Claude spend,
+    // and refunded below if anything after it fails.
+    const usage = await consumeUsage(supabase, MODULE);
+    if (!usage.allowed) return cors({ error: usage.reason }, 429);
 
-    // 4. Persist session + questions.
-    const { data: session, error: sessionError } = await supabase
-      .from("interview_sessions")
-      .insert({
-        user_id: user.id,
-        resume_id: resume.id,
-        jd_id: jdId,
-        target_role: targetRole,
-        experience_years: experienceYears,
-        difficulty,
-        status: "active",
-      })
-      .select()
-      .single();
+    let tokensUsed: number;
+    let session: any;
+    let questions: unknown;
+    try {
+      // 3. Generate questions.
+      const result = await callClaudeJSON<{ questions: GeneratedQuestion[] }>(
+        INTERVIEW_GENERATION_SYSTEM_PROMPT,
+        buildInterviewGenerationUserPrompt({
+          resumeText: resume.raw_text,
+          targetRole,
+          experienceYears,
+          difficulty,
+          jdText,
+        }),
+        CLAUDE_TASKS.interviewGeneration
+      );
+      const generated = result.data;
+      tokensUsed = result.tokensUsed;
 
-    if (sessionError || !session) return cors({ error: "Failed to create session." }, 500);
+      // 4. Persist session + questions.
+      const { data: sessionRow, error: sessionError } = await supabase
+        .from("interview_sessions")
+        .insert({
+          user_id: user.id,
+          resume_id: resume.id,
+          jd_id: jdId,
+          target_role: targetRole,
+          experience_years: experienceYears,
+          difficulty,
+          status: "active",
+        })
+        .select()
+        .single();
 
-    const rows = generated.questions.map((q, i) => ({
-      session_id: session.id,
-      category: q.category,
-      question: q.question,
-      star_sample_answer: q.star_sample_answer,
-      follow_up_questions: q.follow_up_questions,
-      difficulty: q.difficulty,
-      order_index: i,
-    }));
+      if (sessionError || !sessionRow) throw new Error(`Failed to create session: ${sessionError?.message}`);
+      session = sessionRow;
 
-    const { data: questions, error: questionsError } = await supabase
-      .from("interview_questions")
-      .insert(rows)
-      .select();
+      const rows = generated.questions.map((q, i) => ({
+        session_id: session.id,
+        category: q.category,
+        question: q.question,
+        star_sample_answer: q.star_sample_answer,
+        follow_up_questions: q.follow_up_questions,
+        difficulty: q.difficulty,
+        order_index: i,
+      }));
 
-    if (questionsError) return cors({ error: "Failed to save questions." }, 500);
+      const { data: questionRows, error: questionsError } = await supabase
+        .from("interview_questions")
+        .insert(rows)
+        .select();
 
-    // 5. Log usage.
-    await logUsageEvent(supabase, user.id, MODULE, tokensUsed);
+      if (questionsError) {
+        // Don't leave an empty session behind for a generation we refunded.
+        await supabase.from("interview_sessions").delete().eq("id", session.id);
+        throw new Error(`Failed to save questions: ${questionsError.message}`);
+      }
+      questions = questionRows;
+    } catch (err) {
+      await releaseUsage(usage.eventId);
+      throw err;
+    }
+
+    // 5. Record token spend for cost reporting.
+    await recordUsageTokens(usage.eventId, tokensUsed);
 
     return cors({ session, questions });
   } catch (err) {
     console.error(err);
+    // Claude overloaded/timing out after retries: usage was already refunded,
+    // so tell the user to retry rather than showing a generic error.
+    if (isClaudeBusyError(err)) return cors({ error: err.message }, 503);
     return cors({ error: "Unexpected error generating interview questions." }, 500);
   }
 });
