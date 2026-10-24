@@ -2,7 +2,7 @@ import { LegalLayout, LegalSection } from "@/shared/layout/LegalLayout";
 
 export function PrivacyPage() {
   return (
-    <LegalLayout title="Privacy Policy" lastUpdated="22 July 2026">
+    <LegalLayout title="Privacy Policy" lastUpdated="24 October 2026">
       <LegalSection heading="1. Who we are">
         <p>
           CareerPilot AI ("CareerPilot", "we", "us") is a product operated under Operix. This
@@ -47,12 +47,18 @@ export function PrivacyPage() {
       </LegalSection>
 
       <LegalSection heading="3. How we use your information">
-        <p>We use your information solely to operate CareerPilot AI, specifically to:</p>
+        <p>We use your information to operate CareerPilot AI, specifically to:</p>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>Generate the resume analysis, job-match, interview questions, and resume documents you request</li>
           <li>Maintain your account and keep you signed in</li>
           <li>Enforce the usage limits associated with your plan</li>
           <li>Diagnose and fix technical problems</li>
+          <li>
+            Send you occasional emails about your account, new features, and offers such as Pro
+            plans. You can opt out at any time by replying &quot;unsubscribe&quot; or writing to
+            hello@operix.co.in, and we will stop. Emails about payments and your account security
+            are sent regardless.
+          </li>
         </ul>
         <p>We do not sell your personal information, and we do not use your content to train our own AI models.</p>
       </LegalSection>
