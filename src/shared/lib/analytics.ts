@@ -35,16 +35,16 @@ function applyPostHogConsent(choice: ConsentChoice) {
     posthog.set_config({
       persistence: "localStorage+cookie",
       autocapture: true,
-      capture_pageview: true,
+      capture_pageview: "history_change",
     });
-    posthog.capture("$pageview");
   } else {
-    // Not consented: no cookies / localStorage identifiers, no autocapture
-    // or pageviews. Exception capture stays on so error monitoring works.
+    // Not consented: no cookies / localStorage identifiers and no
+    // autocapture. Page views are still counted cookieless (in-memory id
+    // that dies with the tab) so visitor numbers aren't near zero.
     posthog.set_config({
       persistence: "memory",
       autocapture: false,
-      capture_pageview: false,
+      capture_pageview: "history_change",
     });
   }
 }
@@ -106,13 +106,14 @@ export function trackAdsConversion(
 export function initAnalytics() {
   if (!POSTHOG_KEY || initialized) return;
 
-  // Until the visitor accepts, run cookieless (in-memory persistence) with
-  // autocapture/pageviews off; exception capture stays on for monitoring.
+  // Until the visitor accepts, run cookieless (in-memory persistence): page
+  // views (including in-app navigation) are counted without cookies, and
+  // autocapture stays off. Exception capture stays on for monitoring.
   const consented = getConsent() === "granted";
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
     capture_exceptions: true, // reports uncaught JS errors automatically
-    capture_pageview: consented,
+    capture_pageview: "history_change",
     autocapture: consented,
     persistence: consented ? "localStorage+cookie" : "memory",
     person_profiles: "identified_only", // don't create profiles for anonymous visitors
@@ -131,6 +132,12 @@ export function identifyUser(userId: string) {
 export function resetAnalyticsIdentity() {
   if (!initialized) return;
   posthog.reset();
+}
+
+/** Named product event (e.g. the landing-page quick check). Cookieless until consent. */
+export function trackEvent(name: string, props?: Record<string, unknown>) {
+  if (!initialized) return;
+  posthog.capture(name, props);
 }
 
 export function captureException(error: unknown) {

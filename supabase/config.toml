@@ -14,3 +14,8 @@ verify_jwt = false
 
 # Every other function keeps the default (verify_jwt = true) so only
 # logged-in users can call them.
+
+# Landing-page try-before-signup check: visitors have no account, so no JWT.
+# The function protects itself with hashed-IP and site-wide daily caps.
+[functions.public-ats-check]
+verify_jwt = false

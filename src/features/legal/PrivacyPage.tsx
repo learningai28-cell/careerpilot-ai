@@ -83,8 +83,9 @@ export function PrivacyPage() {
             <strong>PostHog</strong> — we use PostHog to catch technical errors and to understand
             which features are actually used, so we can fix problems and improve the product.
             PostHog may capture your device/browser type, pages visited, and actions you take in
-            the app. We do not use it for advertising, and we do not share this data with
-            advertisers.
+            the app. If you don't accept cookies, we still count page views without cookies or
+            any lasting identifier. We do not use it for advertising, and we do not share this
+            data with advertisers.
           </li>
           <li>
             <strong>Google Ads</strong> — we use the Google tag to measure whether our ads lead to

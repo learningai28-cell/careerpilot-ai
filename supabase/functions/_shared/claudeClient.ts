@@ -54,6 +54,9 @@ export const CLAUDE_TASKS = {
   // Mechanical restructuring; output is roughly as long as the resume itself
   // (up to ~25k chars ≈ 6k tokens input cap), so allow generous room. Haiku.
   resumeDataExtraction: { model: HAIKU, maxTokens: 8000 },
+  // Public try-before-signup teaser (~250 tokens of JSON). Anonymous traffic,
+  // so it must stay on the cheapest model. Haiku.
+  quickAtsCheck: { model: HAIKU, maxTokens: 900 },
 } as const;
 
 export interface ClaudeCallOptions {

@@ -12,6 +12,7 @@ import { useTheme } from "@/shared/hooks/useTheme";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { ConsentBanner } from "@/features/consent/ConsentBanner";
 import { FREE_TIER_LIMITS } from "@/shared/lib/usageLimits";
+import { QuickAtsCheck } from "./QuickAtsCheck";
 
 const btnBase =
   "inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors";
@@ -132,7 +133,7 @@ export function LandingPage() {
 
       <main>
         {/* Hero */}
-        <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20">
+        <section className="mx-auto grid max-w-6xl items-start gap-10 px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1fr_420px]">
           <div className="max-w-2xl">
             <h1 className="font-display text-3xl font-semibold leading-tight sm:text-5xl">
               Get your resume past the ATS and ace the interview.
@@ -143,14 +144,15 @@ export function LandingPage() {
               required.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to="/signup" className={btnPrimary}>
-                Get started free
-              </Link>
-              <Link to="/login" className={btnSecondary}>
-                Log in
+              <a href="#free-check" className={btnPrimary}>
+                Check my resume free
+              </a>
+              <Link to="/signup" className={btnSecondary}>
+                Create free account
               </Link>
             </div>
           </div>
+          <QuickAtsCheck signupClass={btnPrimary} />
         </section>
 
         {/* Modules */}
