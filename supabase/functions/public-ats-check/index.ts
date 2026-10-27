@@ -79,11 +79,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!.slice(-24),
       clientIp(req)
     );
-    const { data: claimed, error: claimError } = await service.rpc("claim_anon_ats_check", {
-      p_ip_hash: ipHash,
-      p_per_ip: PER_IP_PER_DAY,
-      p_global: SITE_WIDE_PER_DAY,
-    });
+    const claim = () =>
+      service.rpc("claim_anon_ats_check", {
+        p_ip_hash: ipHash,
+        p_per_ip: PER_IP_PER_DAY,
+        p_global: SITE_WIDE_PER_DAY,
+      });
+    // One retry: the Data API occasionally drops a request under load, and a
+    // visitor shouldn't see an error for that.
+    let { data: claimed, error: claimError } = await claim();
+    if (claimError) ({ data: claimed, error: claimError } = await claim());
     if (claimError) throw new Error(`claim_anon_ats_check failed: ${claimError.message}`);
     if (claimed === null) {
       return cors(
