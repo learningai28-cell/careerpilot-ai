@@ -4,6 +4,8 @@ import { Lock, RefreshCw, UploadCloud } from "lucide-react";
 import { supabase } from "@/shared/lib/supabaseClient";
 import { ScoreGauge } from "@/shared/components/ScoreGauge";
 import { trackEvent } from "@/shared/lib/analytics";
+import { ShareButtons } from "@/shared/components/ShareButtons";
+import { SITE_URL } from "@/shared/lib/referral";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -188,10 +190,18 @@ export function QuickAtsCheck({ signupClass }: { signupClass: string }) {
           <Link to="/signup" className={`${signupClass} mt-4 w-full`}>
             See my full report, free
           </Link>
+          <div className="mt-5 border-t border-line-light pt-4 dark:border-line-dark">
+            <p className="mb-2 text-sm font-medium">Know someone job hunting? Share the free check</p>
+            <ShareButtons
+              source="quick_check"
+              url={`${SITE_URL}/?utm_source=share&utm_campaign=quick_check`}
+              text={`My resume scored ${state.result.ats_score}/100 on CareerPilot AI's free ATS check. Check yours, no sign-up needed:`}
+            />
+          </div>
           <button
             type="button"
             onClick={reset}
-            className="mt-2 w-full text-center text-xs text-slate-500 hover:underline dark:text-slate-400"
+            className="mt-3 w-full text-center text-xs text-slate-500 hover:underline dark:text-slate-400"
           >
             Check another resume
           </button>

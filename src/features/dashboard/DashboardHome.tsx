@@ -3,6 +3,7 @@ import { ModuleCard } from "./ModuleCard";
 import { ScoreGauge } from "@/shared/components/ScoreGauge";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { useAuth } from "@/features/auth/AuthContext";
+import { ReferralCard } from "./ReferralCard";
 
 const modules = [
   {
@@ -45,6 +46,8 @@ export function DashboardHome() {
           Here's where you left off, and where to go next.
         </p>
       </div>
+
+      <ReferralCard />
 
       <Card className="mb-8">
         <CardHeader className="flex items-center justify-between">

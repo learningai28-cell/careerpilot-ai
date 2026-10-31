@@ -2,7 +2,7 @@ import { LegalLayout, LegalSection } from "@/shared/layout/LegalLayout";
 
 export function PrivacyPage() {
   return (
-    <LegalLayout title="Privacy Policy" lastUpdated="24 October 2026">
+    <LegalLayout title="Privacy Policy" lastUpdated="31 October 2026">
       <LegalSection heading="1. Who we are">
         <p>
           CareerPilot AI ("CareerPilot", "we", "us") is a product operated under Operix. This
@@ -53,6 +53,11 @@ export function PrivacyPage() {
           <li>Maintain your account and keep you signed in</li>
           <li>Enforce the usage limits associated with your plan</li>
           <li>Diagnose and fix technical problems</li>
+          <li>
+            Run our referral programme: if you join through a friend&apos;s invite link, we link
+            your account to theirs so they can earn free Pro. They only see how many friends joined
+            and were active, never who you are.
+          </li>
           <li>
             Send you occasional emails about your account, new features, and offers such as Pro
             plans. You can opt out at any time by replying &quot;unsubscribe&quot; or writing to
