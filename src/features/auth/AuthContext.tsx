@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/shared/lib/supabaseClient";
 import { identifyUser, resetAnalyticsIdentity } from "@/shared/lib/analytics";
+import { claimPendingReferral } from "@/shared/lib/referral";
 
 interface AuthContextValue {
   user: User | null;
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       if (data.session?.user) {
         identifyUser(data.session.user.id);
+        void claimPendingReferral();
       }
     });
 
@@ -34,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession);
       if (newSession?.user) {
         identifyUser(newSession.user.id);
+        void claimPendingReferral();
       } else {
         resetAnalyticsIdentity();
       }

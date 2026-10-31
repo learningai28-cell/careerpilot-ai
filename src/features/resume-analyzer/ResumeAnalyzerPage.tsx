@@ -10,6 +10,7 @@ import { KeywordsAndFormatting } from "./components/KeywordsAndFormatting";
 import { SkillsGap } from "./components/SkillsGap";
 import { SectionFeedback } from "./components/SectionFeedback";
 import { ImprovedSummary } from "./components/ImprovedSummary";
+import { ShareScore } from "./components/ShareScore";
 
 export function ResumeAnalyzerPage() {
   const { data: resume, isLoading: resumeLoading } = useResume();
@@ -58,6 +59,9 @@ export function ResumeAnalyzerPage() {
                   ? "Solid foundation with clear gaps to close — see below."
                   : "Significant gaps found. Work through the sections below in order."}
               </div>
+            </div>
+            <div className="mt-6 border-t border-line-light pt-4 dark:border-line-dark">
+              <ShareScore score={analysis.ats_score} />
             </div>
           </Card>
 
